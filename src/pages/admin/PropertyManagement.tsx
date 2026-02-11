@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import { Property, PropertyStatus } from '../../types';
-import { Check, X, Eye, Trash2, ShieldCheck, FileText, PlusCircle, Loader2 } from 'lucide-react';
+import { X, Eye, Trash2, ShieldCheck, PlusCircle, Loader2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-
-// REMOVED: interface PropertyManagementProps
-// Now it fetches its own data
 
 const PropertyManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -15,7 +12,25 @@ const PropertyManagement: React.FC = () => {
   const [selectedProp, setSelectedProp] = useState<Property | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  // --- 1. FETCH DATA (The Fix) ---
+  // --- HELPER: Cloudinary Thumbnails ---
+  const getThumbnail = (url?: string) => {
+    if (!url) return 'https://via.placeholder.com/150';
+    if (url.includes('cloudinary.com')) {
+      // Small 100x100 thumbnail for table
+      return url.replace('/upload/', '/upload/c_fill,w_100,h_100,q_auto,f_auto/');
+    }
+    return url;
+  };
+
+  const getPreviewImage = (url?: string) => {
+    if (!url) return 'https://via.placeholder.com/400x300';
+    if (url.includes('cloudinary.com')) {
+      // Medium preview for sidebar
+      return url.replace('/upload/', '/upload/c_fill,w_400,h_300,q_auto,f_auto/');
+    }
+    return url;
+  };
+
   useEffect(() => {
     fetchProperties();
   }, []);
@@ -31,7 +46,6 @@ const PropertyManagement: React.FC = () => {
       if (error) throw error;
 
       if (data) {
-        // Map DB to Types
         const mapped: Property[] = data.map((p: any) => ({
             id: p.id,
             title: p.title,
@@ -64,7 +78,6 @@ const PropertyManagement: React.FC = () => {
     }
   };
 
-  // --- Actions ---
   const handleStatusChange = async (id: string, newStatus: PropertyStatus, isVerified: boolean) => {
     setProcessingId(id);
     try {
@@ -162,7 +175,11 @@ const PropertyManagement: React.FC = () => {
                             <tr key={p.id} className={`hover:bg-gray-50 cursor-pointer ${selectedProp?.id === p.id ? 'bg-blue-50/50' : ''}`} onClick={() => setSelectedProp(p)}>
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
-                                        <img src={p.images?.[0] || 'https://via.placeholder.com/150'} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                                        <img 
+                                            src={getThumbnail(p.images?.[0])} 
+                                            alt="" 
+                                            className="w-12 h-12 rounded-lg object-cover bg-gray-100" 
+                                        />
                                         <div>
                                             <p className="font-bold text-gray-900 line-clamp-1">{p.title}</p>
                                             <p className="text-xs text-gray-500">₹{p.price.toLocaleString()}</p>
@@ -206,7 +223,11 @@ const PropertyManagement: React.FC = () => {
                         <button onClick={() => setSelectedProp(null)}><X size={20} className="text-gray-400" /></button>
                     </div>
 
-                    <img src={selectedProp.images?.[0]} className="w-full h-40 object-cover rounded-lg mb-4" />
+                    <img 
+                        src={getPreviewImage(selectedProp.images?.[0])} 
+                        className="w-full h-40 object-cover rounded-lg mb-4 bg-gray-100" 
+                        alt="Preview"
+                    />
                     <div className="mb-4">
                         <h3 className="font-bold text-gray-800 line-clamp-2">{selectedProp.title}</h3>
                         <p className="text-sm text-gray-500">{selectedProp.location}, {selectedProp.city}</p>

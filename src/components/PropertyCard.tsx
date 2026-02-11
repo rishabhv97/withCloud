@@ -8,11 +8,20 @@ interface PropertyCardProps {
 }
 
 const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
-  // 1. SAFE IMAGE HANDLING
-  // Use the first image from the array, or a fallback if empty
+  
+  // --- HELPER: Cloudinary Optimization ---
+  const getOptimizedUrl = (url: string) => {
+    if (!url) return 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80';
+    if (url.includes('cloudinary.com')) {
+      // Inject transformations: Auto Format (webp), Auto Quality, Resize to width 600
+      return url.replace('/upload/', '/upload/f_auto,q_auto,w_600,c_scale/');
+    }
+    return url;
+  };
+
   const mainImage = property.images && property.images.length > 0 
-    ? property.images[0] 
-    : 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80';
+    ? getOptimizedUrl(property.images[0])
+    : getOptimizedUrl('');
 
   const formatPrice = (price: number) => {
     if (price >= 10000000) return `₹ ${(price / 10000000).toFixed(2)} Cr`;
@@ -31,17 +40,18 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
           <img 
             src={mainImage} 
             alt={property.title} 
+            loading="lazy"
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
           />
           
-          {/* Price & Title Overlay (Now Clickable) */}
+          {/* Price & Title Overlay */}
           <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-12">
               <h3 className="text-xl font-bold text-white truncate">{formatPrice(property.price)}</h3>
               <p className="text-white/90 text-sm truncate">{property.title}</p>
           </div>
         </div>
 
-        {/* Details Section (Now Clickable) */}
+        {/* Details Section */}
         <div className="p-5 flex flex-col flex-grow">
           <div className="flex items-center gap-1 text-gray-500 text-sm mb-4">
              <MapPin size={16} className="text-brand-green flex-shrink-0" />
@@ -80,9 +90,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
         </div>
       </Link>
 
-      {/* --- FLOATING ELEMENTS (Badges & Heart) --- */}
-      {/* These sit ON TOP of the Link using Absolute Positioning */}
-      
+      {/* --- FLOATING ELEMENTS --- */}
       <div className="absolute top-3 left-3 flex gap-2 pointer-events-none">
           <span className="bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md text-xs font-bold text-brand-green uppercase tracking-wide shadow-sm">
               {property.listingType === 'sale' ? 'For Sale' : 'For Rent'}
@@ -97,9 +105,8 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
       <button 
         className="absolute top-3 right-3 p-2 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-red-500 transition-colors shadow-sm z-10"
         onClick={(e) => {
-            e.preventDefault(); // Stop the card Link from opening
+            e.preventDefault(); 
             e.stopPropagation();
-            // Add Favorite Logic here later
         }}
       >
           <Heart size={18} />

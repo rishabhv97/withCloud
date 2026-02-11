@@ -200,24 +200,34 @@ const PostProperty: React.FC = () => {
     try {
         const imageUrls: string[] = [];
         
-        // Ensure images are uploaded before creating DB record
-        for (const file of imageFiles) {
-            // Note: file.name might change if converted to WebP, so we generate a new name
-            const fileExt = file.type === 'image/webp' ? 'webp' : file.name.split('.').pop();
-            const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-            
-            const { error: uploadErr } = await supabase.storage
-                .from('property-images')
-                .upload(fileName, file);
-            
-            if (uploadErr) throw uploadErr;
+        // New Cloudinary Logic
+for (const file of imageFiles) {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET); 
+    formData.append("cloud_name", import.meta.env.VITE_CLOUDINARY_CLOUD_NAME);
+    formData.append("folder", "real-estate-app"); // Optional: Organize files in a folder
 
-            const { data: { publicUrl } } = supabase.storage
-                .from('property-images')
-                .getPublicUrl(fileName);
-            
-            imageUrls.push(publicUrl);
-        }
+    try {
+        const res = await fetch(
+            `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
+            {
+                method: "POST",
+                body: formData,
+            }
+        );
+
+        if (!res.ok) throw new Error("Image upload failed");
+
+        const data = await res.json();
+        imageUrls.push(data.secure_url); // Push the Cloudinary URL
+    } catch (uploadError) {
+        console.error("Error uploading to Cloudinary:", uploadError);
+        toast.error(`Failed to upload ${file.name}`);
+        setIsSubmitting(false); // Stop submission if critical image fails
+        return; 
+    }
+}
 
         if (imageUrls.length === 0) {
             imageUrls.push('https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1000&q=80');

@@ -22,6 +22,19 @@ const PropertyDetails: React.FC = () => {
   const [leadForm, setLeadForm] = useState({ name: '', phone: '', message: '' });
   const [submitLoading, setSubmitLoading] = useState(false);
 
+  // --- UPDATED: Helper for Optimization ---
+  // Added 'quality' parameter and increased default width to 2000 for better clarity
+  const getOptimizedUrl = (url: string, width = 2000, quality = 'auto') => {
+    if (!url) return '';
+    if (url.includes('cloudinary.com')) {
+      // f_auto = auto format (webp)
+      // q_... = quality setting (auto or auto:best)
+      // c_limit = scale down only if too big
+      return url.replace('/upload/', `/upload/f_auto,q_${quality},c_limit,w_${width}/`);
+    }
+    return url;
+  };
+
   useEffect(() => {
     const fetchProperty = async () => {
       if (!id) return;
@@ -35,7 +48,6 @@ const PropertyDetails: React.FC = () => {
         if (error) throw error;
 
         if (data) {
-          // --- FULL DATA MAPPING ---
           const mappedProperty: Property = {
             id: data.id,
             title: data.title,
@@ -45,33 +57,26 @@ const PropertyDetails: React.FC = () => {
             city: data.city,
             type: data.type,
             listingType: data.listing_type,
-            
-            // Images (Handle array or fallback)
+            // Keep original URLs here, we optimize them when rendering
             images: data.images && data.images.length > 0 
               ? data.images 
               : ['https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1200&q=80'],
-
             bedrooms: data.bedrooms,
             bathrooms: data.bathrooms,
             balconies: data.balconies,
-            
-            // Area Details
-            area: data.area, // Primary sort area
+            area: data.area,
             carpetArea: data.carpet_area,
             builtUpArea: data.built_up_area,
             superBuiltUpArea: data.super_built_up_area,
-            
             amenities: data.amenities || [],
             ownerContact: data.owner_contact,
             datePosted: data.created_at,
             isFeatured: data.is_featured,
             status: data.status,
             ownerId: data.owner_id,
-
-            // Features & Specs
             constructionStatus: data.construction_status,
             furnishedStatus: data.furnished_status,
-            listedBy: data.listed_by, // Check your DB column name (listed_by vs listedBy)
+            listedBy: data.listed_by,
             ownershipType: data.ownership_type,
             facing: data.facing_entry,
             exitFacing: data.facing_exit,
@@ -79,22 +84,15 @@ const PropertyDetails: React.FC = () => {
             totalFloors: data.total_floors,
             parkingSpaces: data.parking_spaces,
             yearBuilt: data.year_built,
-            
-            // Arrays
             additionalRooms: data.additional_rooms || [],
             views: data.views || [],
             documents: data.available_documents || [],
-            
-            // Price & Brokerage
             priceNegotiable: data.price_negotiable,
             allInclusivePrice: data.is_all_inclusive_price,
             taxExcluded: data.is_tax_excluded,
             pricePerSqft: data.price_per_sqft,
-            
             brokerageType: data.brokerage_type,
             brokerageAmount: data.brokerage_amount,
-            
-            // Media Flags
             hasShowcase: data.is_virtual_showcase,
             has3DVideo: data.is_3d_video,
             reraApproved: data.rera_approved,
@@ -155,7 +153,13 @@ const PropertyDetails: React.FC = () => {
       
       {/* 1. IMAGE GALLERY HEADER */}
       <div className="relative h-[50vh] md:h-[65vh] w-full bg-gray-900 group">
-        <img src={activeImage} alt={property.title} className="w-full h-full object-cover opacity-90 transition-opacity duration-300" />
+        
+        {/* UPDATED: Request Width 2000px and Best Quality for Sharpness */}
+        <img 
+          src={getOptimizedUrl(activeImage, 2000, 'auto:best')} 
+          alt={property.title} 
+          className="w-full h-full object-cover opacity-90 transition-opacity duration-300" 
+        />
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/80 via-transparent to-black/30"></div>
         
         {/* Navigation */}
@@ -163,13 +167,18 @@ const PropertyDetails: React.FC = () => {
             <ArrowLeft size={24} />
         </button>
 
-        {/* Thumbnails (If more than 1 image) */}
+        {/* Thumbnails */}
         {property.images.length > 1 && (
             <div className="absolute bottom-28 md:bottom-8 right-4 flex gap-2 overflow-x-auto max-w-full pb-2 z-20 scrollbar-hide">
                 {property.images.map((img, idx) => (
                     <button key={idx} onClick={() => setActiveImage(img)} 
                         className={`w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 ${activeImage === img ? 'border-brand-green scale-105' : 'border-white/50 hover:border-white'}`}>
-                        <img src={img} alt={`View ${idx}`} className="w-full h-full object-cover" />
+                        {/* Keep Thumbnails Small (200px) */}
+                        <img 
+                          src={getOptimizedUrl(img, 200)} 
+                          alt={`View ${idx}`} 
+                          className="w-full h-full object-cover" 
+                        />
                     </button>
                 ))}
             </div>
@@ -191,10 +200,10 @@ const PropertyDetails: React.FC = () => {
         </div>
       </div>
 
+      {/* 2. MAIN DETAILS */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 md:-mt-10 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* 2. MAIN DETAILS */}
           <div className="lg:col-span-2 space-y-8">
             
             {/* Quick Stats Card */}
