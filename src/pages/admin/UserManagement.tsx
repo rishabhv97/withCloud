@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import { User, UserRole } from '../../types';
-import { Search, Shield, User as UserIcon, Building2, Trash2, Loader2, ArrowUpCircle } from 'lucide-react'; // Added ArrowUpCircle
+import { useAuth } from '../../context/AuthContext'; // 1. Import Auth Hook
+import { Search, Shield, User as UserIcon, Building2, Trash2, Loader2, ArrowUpCircle } from 'lucide-react';
 
 const UserManagement: React.FC = () => {
+  const { user: currentUser } = useAuth(); // 2. Get the currently logged-in Admin
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterRole, setFilterRole] = useState<'All' | UserRole>('All');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 1. Fetch Users
+  // ... (Keep fetchUsers and handleRoleChange exactly the same) ...
+  
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -41,8 +44,8 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  // 2. Promote/Demote Agent Logic
   const handleRoleChange = async (userId: string, currentRole: string) => {
+      // ... (Keep your existing role change logic)
       const newRole = currentRole === 'Broker' ? 'Seller' : 'Broker';
       const actionName = newRole === 'Broker' ? "Promote to Agent" : "Revoke Agent Status";
       
@@ -56,7 +59,6 @@ const UserManagement: React.FC = () => {
 
           if (error) throw error;
 
-          // Update local state
           setUsers(users.map(u => u.id === userId ? { ...u, role: newRole as UserRole } : u));
           alert(`User successfully updated to ${newRole}`);
 
@@ -66,15 +68,25 @@ const UserManagement: React.FC = () => {
       }
   };
 
+  // 3. Updated Delete Logic
   const handleDelete = async (id: string) => {
+      // Safety Check: Prevent self-deletion
+      if (id === currentUser?.id) {
+          alert("Action Denied: You cannot delete your own Admin account.");
+          return;
+      }
+
       if(!confirm("Are you sure? This cannot be undone.")) return;
+      
       const { error } = await supabase.from('profiles').delete().eq('id', id);
       if(!error) {
           setUsers(users.filter(u => u.id !== id));
+      } else {
+          alert("Error deleting user.");
       }
   };
 
-  // Filter Logic
+  // ... (Keep Filter Logic the same) ...
   const filteredUsers = users.filter(user => {
     const matchesRole = filterRole === 'All' || user.role === filterRole;
     const matchesSearch = 
@@ -87,7 +99,7 @@ const UserManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header & Actions */}
+      {/* ... (Keep Header & Search the same) ... */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
             <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
@@ -120,10 +132,10 @@ const UserManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
+                {/* ... (Keep Table Head same) ... */}
                 <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-200">
                     <tr>
                         <th className="px-6 py-4">User</th>
@@ -135,13 +147,16 @@ const UserManagement: React.FC = () => {
                 <tbody className="divide-y divide-gray-100">
                     {filteredUsers.length > 0 ? filteredUsers.map((user) => (
                         <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                            {/* ... (Keep User Info Columns same) ... */}
                             <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-full bg-brand-green/10 text-brand-green flex items-center justify-center font-bold">
                                         {user.name[0]?.toUpperCase()}
                                     </div>
                                     <div>
-                                        <p className="font-bold text-gray-900">{user.name}</p>
+                                        <p className="font-bold text-gray-900">
+                                            {user.name} {currentUser?.id === user.id && <span className="text-xs text-brand-green bg-green-50 px-2 py-0.5 rounded-full">(You)</span>}
+                                        </p>
                                         <p className="text-xs text-gray-500">Joined {new Date(user.joinDate).toLocaleDateString()}</p>
                                     </div>
                                 </div>
@@ -166,7 +181,7 @@ const UserManagement: React.FC = () => {
                             </td>
                             <td className="px-6 py-4 text-right">
                                 <div className="flex items-center justify-end gap-2">
-                                    {/* Promote/Demote Button (Only for Non-Admins) */}
+                                    {/* ... (Promote Button Logic same) ... */}
                                     {user.role !== 'Admin' && (
                                         <button 
                                             onClick={() => handleRoleChange(user.id, user.role)}
@@ -175,14 +190,23 @@ const UserManagement: React.FC = () => {
                                                 ? 'text-orange-600 border-orange-200 hover:bg-orange-50' 
                                                 : 'text-blue-600 border-blue-200 hover:bg-blue-50'
                                             }`}
-                                            title={user.role === 'Broker' ? "Demote to Seller" : "Promote to Agent"}
                                         >
                                             <ArrowUpCircle size={14} className={user.role === 'Broker' ? 'rotate-180' : ''} />
                                             {user.role === 'Broker' ? 'Revoke' : 'Make Agent'}
                                         </button>
                                     )}
                                     
-                                    <button onClick={() => handleDelete(user.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                    {/* 4. Disable Delete Button for Self */}
+                                    <button 
+                                        onClick={() => handleDelete(user.id)}
+                                        disabled={currentUser?.id === user.id}
+                                        title={currentUser?.id === user.id ? "You cannot delete yourself" : "Delete User"}
+                                        className={`p-2 rounded-lg transition-colors ${
+                                            currentUser?.id === user.id 
+                                                ? 'text-gray-300 cursor-not-allowed bg-gray-50' 
+                                                : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                                        }`}
+                                    >
                                         <Trash2 size={16} />
                                     </button>
                                 </div>
