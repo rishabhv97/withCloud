@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { useAuth } from '../context/AuthContext'; // <--- 1. Import Auth
 import { Property } from '../types';
 import { 
   MapPin, BedDouble, Bath, Maximize, ArrowLeft, Phone, Mail, 
   ShieldCheck, CheckCircle2, User, X, Loader2, Home, Layers, 
-  Compass, Calendar, Car, FileText, Info, Camera
+  Compass, Calendar, Car, FileText, Info, Camera, Edit // <--- 2. Import Edit Icon
 } from 'lucide-react';
 
 const PropertyDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth(); // <--- 3. Get Current User
   
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,19 +23,6 @@ const PropertyDetails: React.FC = () => {
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [leadForm, setLeadForm] = useState({ name: '', phone: '', message: '' });
   const [submitLoading, setSubmitLoading] = useState(false);
-
-  // --- UPDATED: Helper for Optimization ---
-  // Added 'quality' parameter and increased default width to 2000 for better clarity
-  const getOptimizedUrl = (url: string, width = 2000, quality = 'auto') => {
-    if (!url) return '';
-    if (url.includes('cloudinary.com')) {
-      // f_auto = auto format (webp)
-      // q_... = quality setting (auto or auto:best)
-      // c_limit = scale down only if too big
-      return url.replace('/upload/', `/upload/f_auto,q_${quality},c_limit,w_${width}/`);
-    }
-    return url;
-  };
 
   useEffect(() => {
     const fetchProperty = async () => {
@@ -57,14 +46,13 @@ const PropertyDetails: React.FC = () => {
             city: data.city,
             type: data.type,
             listingType: data.listing_type,
-            // Keep original URLs here, we optimize them when rendering
             images: data.images && data.images.length > 0 
               ? data.images 
               : ['https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1200&q=80'],
             bedrooms: data.bedrooms,
             bathrooms: data.bathrooms,
             balconies: data.balconies,
-            area: data.area,
+            area: data.area, 
             carpetArea: data.carpet_area,
             builtUpArea: data.built_up_area,
             superBuiltUpArea: data.super_built_up_area,
@@ -148,18 +136,15 @@ const PropertyDetails: React.FC = () => {
   if (loading) return <div className="h-screen flex items-center justify-center text-brand-green font-bold text-xl"><Loader2 className="animate-spin mr-2"/> Loading Details...</div>;
   if (error || !property) return <div className="p-10 text-center">Property Not Found</div>;
 
+  // --- CHECK IF OWNER ---
+  const isOwner = user && (user.id === property.ownerId || user.role === 'Admin');
+
   return (
     <div className="bg-gray-50 min-h-screen pb-12 relative">
       
       {/* 1. IMAGE GALLERY HEADER */}
       <div className="relative h-[50vh] md:h-[65vh] w-full bg-gray-900 group">
-        
-        {/* UPDATED: Request Width 2000px and Best Quality for Sharpness */}
-        <img 
-          src={getOptimizedUrl(activeImage, 2000, 'auto:best')} 
-          alt={property.title} 
-          className="w-full h-full object-cover opacity-90 transition-opacity duration-300" 
-        />
+        <img src={activeImage} alt={property.title} className="w-full h-full object-cover opacity-90 transition-opacity duration-300" />
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/80 via-transparent to-black/30"></div>
         
         {/* Navigation */}
@@ -167,18 +152,23 @@ const PropertyDetails: React.FC = () => {
             <ArrowLeft size={24} />
         </button>
 
+        {/* --- NEW: EDIT BUTTON (Only for Owner) --- */}
+        {isOwner && (
+            <button 
+                onClick={() => navigate(`/edit-property/${property.id}`)} 
+                className="absolute top-6 right-4 bg-white/90 backdrop-blur-md px-4 py-2 rounded-full text-brand-green font-bold hover:bg-white transition z-20 shadow-lg flex items-center gap-2"
+            >
+                <Edit size={18} /> Edit Listing
+            </button>
+        )}
+
         {/* Thumbnails */}
         {property.images.length > 1 && (
             <div className="absolute bottom-28 md:bottom-8 right-4 flex gap-2 overflow-x-auto max-w-full pb-2 z-20 scrollbar-hide">
                 {property.images.map((img, idx) => (
                     <button key={idx} onClick={() => setActiveImage(img)} 
                         className={`w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 ${activeImage === img ? 'border-brand-green scale-105' : 'border-white/50 hover:border-white'}`}>
-                        {/* Keep Thumbnails Small (200px) */}
-                        <img 
-                          src={getOptimizedUrl(img, 200)} 
-                          alt={`View ${idx}`} 
-                          className="w-full h-full object-cover" 
-                        />
+                        <img src={img} alt={`View ${idx}`} className="w-full h-full object-cover" />
                     </button>
                 ))}
             </div>
@@ -200,10 +190,10 @@ const PropertyDetails: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. MAIN DETAILS */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 md:-mt-10 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
+          {/* 2. MAIN DETAILS */}
           <div className="lg:col-span-2 space-y-8">
             
             {/* Quick Stats Card */}

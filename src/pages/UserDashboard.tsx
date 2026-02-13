@@ -3,7 +3,9 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { Property } from '../types';
 import { Link } from 'react-router-dom';
-import { Trash2, MessageSquare, Home, Calendar, Phone, Mail, Loader2, Edit } from 'lucide-react'; // Added 'Edit'
+import { Trash2, MessageSquare, Home, Calendar, Phone, Mail, Loader2, Edit } from 'lucide-react';
+import toast from 'react-hot-toast';
+import ConfirmationModal from '../components/ConfirmationModal'; // <--- Import Modal
 
 interface Lead {
   id: string;
@@ -23,6 +25,11 @@ const UserDashboard: React.FC = () => {
   const [myLeads, setMyLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // --- Modal State ---
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   useEffect(() => {
     if (!user) return;
     fetchDashboardData();
@@ -31,7 +38,6 @@ const UserDashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      // 1. Fetch My Properties
       const { data: props, error: propError } = await supabase
         .from('properties')
         .select('*')
@@ -41,7 +47,6 @@ const UserDashboard: React.FC = () => {
       if (propError) throw propError;
       setMyProperties(props as any || []);
 
-      // 2. Fetch My Leads
       const { data: leads, error: leadError } = await supabase
         .from('leads')
         .select('*')
@@ -50,7 +55,6 @@ const UserDashboard: React.FC = () => {
 
       if (leadError) throw leadError;
 
-      // 3. Map Property Titles to Leads
       const formattedLeads = (leads || []).map((lead: any) => {
         const relatedProperty = props?.find(p => p.id === lead.property_id);
         return {
@@ -63,21 +67,29 @@ const UserDashboard: React.FC = () => {
 
     } catch (error) {
       console.error("Error loading dashboard:", error);
+      toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteProperty = async (property: Property) => {
-    if (!confirm("Are you sure you want to delete this property? This cannot be undone.")) return;
+  // 1. Open Modal instead of confirm()
+  const confirmDelete = (property: Property) => {
+      setPropertyToDelete(property);
+      setIsDeleteModalOpen(true);
+  };
+
+  // 2. Actual Delete Logic
+  const handleDeleteProperty = async () => {
+    if (!propertyToDelete) return;
+    setIsDeleting(true);
 
     try {
-      // 1. Delete Images from Storage (Optional, but good for cleanup)
-      if (property.images && property.images.length > 0) {
-          const filesToRemove = property.images.map(url => {
+      // Delete Images
+      if (propertyToDelete.images && propertyToDelete.images.length > 0) {
+          const filesToRemove = propertyToDelete.images.map(url => {
               if (url.includes('property-images')) {
-                 const path = url.split('property-images/')[1]; // Extract path after bucket name
-                 return path;
+                 return url.split('property-images/')[1];
               }
               return null;
           }).filter(Boolean) as string[];
@@ -87,18 +99,21 @@ const UserDashboard: React.FC = () => {
           }
       }
 
-      // 2. Delete Record from Database
-      const { error } = await supabase.from('properties').delete().eq('id', property.id);
+      // Delete Record
+      const { error } = await supabase.from('properties').delete().eq('id', propertyToDelete.id);
       
       if (error) throw error;
       
-      // 3. Update UI
-      setMyProperties(prev => prev.filter(p => p.id !== property.id));
-      alert("Property deleted successfully.");
+      setMyProperties(prev => prev.filter(p => p.id !== propertyToDelete.id));
+      toast.success("Property deleted successfully");
+      setIsDeleteModalOpen(false);
 
     } catch (err: any) {
-      alert(`Error deleting property: ${err.message}`);
+      toast.error(`Error deleting property: ${err.message}`);
       console.error("Delete error:", err);
+    } finally {
+      setIsDeleting(false);
+      setPropertyToDelete(null);
     }
   };
 
@@ -106,6 +121,17 @@ const UserDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-stone-50 py-10 px-4">
+      
+      {/* --- ADD MODAL HERE --- */}
+      <ConfirmationModal 
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteProperty}
+        title="Delete Property?"
+        message="Are you sure you want to delete this listing? This action cannot be undone and all associated images will be removed."
+        isLoading={isDeleting}
+      />
+
       <div className="max-w-6xl mx-auto">
         
         {/* Header */}
@@ -135,7 +161,7 @@ const UserDashboard: React.FC = () => {
            </button>
         </div>
 
-        {/* --- LISTINGS TAB --- */}
+        {/* Listings Tab */}
         {activeTab === 'listings' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {myProperties.length > 0 ? myProperties.map(property => (
@@ -150,6 +176,7 @@ const UserDashboard: React.FC = () => {
                       {property.status}
                     </div>
                  </div>
+                 
                  <div className="p-5 flex-grow">
                     <h3 className="font-bold text-gray-800 mb-1 truncate">{property.title}</h3>
                     <p className="text-sm text-gray-500 mb-4 truncate">{property.location}</p>
@@ -159,13 +186,10 @@ const UserDashboard: React.FC = () => {
                     </div>
                  </div>
                  
-                 {/* ACTIONS SECTION: View, Edit, Delete */}
                  <div className="p-4 border-t border-gray-100 bg-gray-50 flex gap-2">
                     <Link to={`/property/${property.id}`} className="flex-1 text-center py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50">
                        View
                     </Link>
-                    
-                    {/* EDIT BUTTON */}
                     <Link 
                         to={`/edit-property/${property.id}`} 
                         className="p-2 bg-blue-50 text-blue-600 rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors"
@@ -173,10 +197,8 @@ const UserDashboard: React.FC = () => {
                     >
                        <Edit size={18} />
                     </Link>
-
-                    {/* DELETE BUTTON */}
                     <button 
-                        onClick={() => handleDeleteProperty(property)} 
+                        onClick={() => confirmDelete(property)} 
                         className="p-2 bg-red-50 text-red-600 rounded-lg border border-red-100 hover:bg-red-100 transition-colors"
                         title="Delete Property"
                     >
@@ -194,12 +216,11 @@ const UserDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* --- LEADS TAB --- */}
+        {/* Leads Tab */}
         {activeTab === 'leads' && (
           <div className="space-y-4">
              {myLeads.length > 0 ? myLeads.map(lead => (
                <div key={lead.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-6">
-                  {/* Left: Lead Info */}
                   <div className="flex-grow">
                      <div className="flex items-center gap-2 mb-2">
                         <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">New Enquiry</span>
@@ -220,7 +241,6 @@ const UserDashboard: React.FC = () => {
                      </div>
                   </div>
 
-                  {/* Right: Property Context */}
                   <div className="md:w-64 flex-shrink-0 bg-gray-50 p-4 rounded-xl border border-gray-100">
                      <p className="text-xs text-gray-500 font-bold uppercase mb-2">Interested In</p>
                      <div className="flex items-center gap-3">

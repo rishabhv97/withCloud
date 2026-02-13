@@ -3,6 +3,8 @@ import { supabase } from '../../supabaseClient';
 import { Property, PropertyStatus } from '../../types';
 import { X, Eye, Trash2, ShieldCheck, PlusCircle, Loader2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast'; // Ensure you have this for notifications
+import ConfirmationModal from '../../components/ConfirmationModal'; // Import the new Modal
 
 const PropertyManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -12,11 +14,15 @@ const PropertyManagement: React.FC = () => {
   const [selectedProp, setSelectedProp] = useState<Property | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
+  // --- Modal State ---
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // --- HELPER: Cloudinary Thumbnails ---
   const getThumbnail = (url?: string) => {
     if (!url) return 'https://via.placeholder.com/150';
     if (url.includes('cloudinary.com')) {
-      // Small 100x100 thumbnail for table
       return url.replace('/upload/', '/upload/c_fill,w_100,h_100,q_auto,f_auto/');
     }
     return url;
@@ -25,7 +31,6 @@ const PropertyManagement: React.FC = () => {
   const getPreviewImage = (url?: string) => {
     if (!url) return 'https://via.placeholder.com/400x300';
     if (url.includes('cloudinary.com')) {
-      // Medium preview for sidebar
       return url.replace('/upload/', '/upload/c_fill,w_400,h_300,q_auto,f_auto/');
     }
     return url;
@@ -73,6 +78,7 @@ const PropertyManagement: React.FC = () => {
       }
     } catch (err) {
       console.error("Error fetching properties:", err);
+      toast.error("Failed to load properties");
     } finally {
       setLoading(false);
     }
@@ -95,31 +101,46 @@ const PropertyManagement: React.FC = () => {
         if (selectedProp?.id === id) {
             setSelectedProp(prev => prev ? { ...prev, status: newStatus, isVerified: isVerified } : null);
         }
+        toast.success(`Property ${newStatus} successfully`);
     } catch (err) {
         console.error("Error updating status:", err);
-        alert("Failed to update status.");
+        toast.error("Failed to update status.");
     } finally {
         setProcessingId(null);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure? This cannot be undone.")) return;
+  // 1. Open Modal instead of alert
+  const confirmDelete = (e: React.MouseEvent, property: Property) => {
+    e.stopPropagation(); // Prevent opening the side panel
+    setPropertyToDelete(property);
+    setIsDeleteModalOpen(true);
+  };
+
+  // 2. Actual Delete Logic
+  const handleDelete = async () => {
+    if (!propertyToDelete) return;
     
-    setProcessingId(id);
+    setIsDeleting(true);
+    setProcessingId(propertyToDelete.id); // Show loader on button behind modal if visible
+
     try {
-      const { error } = await supabase.from('properties').delete().eq('id', id);
+      const { error } = await supabase.from('properties').delete().eq('id', propertyToDelete.id);
       if (error) throw error;
 
-      setProperties(prev => prev.filter(p => p.id !== id));
-      if (selectedProp?.id === id) setSelectedProp(null);
-      alert("Property deleted successfully.");
+      setProperties(prev => prev.filter(p => p.id !== propertyToDelete.id));
+      if (selectedProp?.id === propertyToDelete.id) setSelectedProp(null);
+      
+      toast.success("Property deleted successfully.");
+      setIsDeleteModalOpen(false);
 
     } catch (err: any) {
       console.error("Error deleting property:", err);
-      alert("Failed to delete. Check database policies.");
+      toast.error("Failed to delete. Check database policies.");
     } finally {
+      setIsDeleting(false);
       setProcessingId(null);
+      setPropertyToDelete(null);
     }
   };
 
@@ -132,6 +153,17 @@ const PropertyManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      
+      {/* --- CONFIRMATION MODAL --- */}
+      <ConfirmationModal 
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Property?"
+        message={`Are you sure you want to permanently delete "${propertyToDelete?.title}"? This action cannot be undone.`}
+        isLoading={isDeleting}
+      />
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
            <h1 className="text-2xl font-bold text-gray-900">Property Management</h1>
@@ -199,9 +231,10 @@ const PropertyManagement: React.FC = () => {
                                 <td className="px-6 py-4 text-xs text-gray-600">{p.listedBy}</td>
                                 <td className="px-6 py-4 text-right">
                                     <button 
-                                        onClick={(e) => {e.stopPropagation(); handleDelete(p.id);}}
+                                        onClick={(e) => confirmDelete(e, p)}
                                         disabled={processingId === p.id}
                                         className="p-2 rounded hover:bg-red-100 text-red-600 disabled:opacity-50" 
+                                        title="Delete Property"
                                     >
                                         {processingId === p.id ? <Loader2 size={16} className="animate-spin"/> : <Trash2 size={16} />}
                                     </button>

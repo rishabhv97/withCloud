@@ -4,7 +4,9 @@ import { Toaster } from 'react-hot-toast';
 
 // Components
 import Navbar from './components/Navbar';
+import Footer from './components/Footer'; 
 import AdminLayout from './components/AdminLayout';
+import ScrollToTop from './components/ScrollToTop'; // <--- 1. Import Added
 
 // Context
 import { AuthProvider, useAuth, ProtectedRoute } from './context/AuthContext';
@@ -13,6 +15,7 @@ import { AuthProvider, useAuth, ProtectedRoute } from './context/AuthContext';
 import Home from './pages/Home';
 import Listings from './pages/Listings';
 import PostProperty from './pages/PostProperty';
+import SellLanding from './pages/SellLanding'; 
 import PropertyDetails from './pages/PropertyDetails';
 import FindAgent from './pages/FindAgent';
 import Settings from './pages/Settings';
@@ -26,7 +29,6 @@ import PropertyManagement from './pages/admin/PropertyManagement';
 import UserManagement from './pages/admin/UserManagement';
 import AdminPeople from './pages/admin/AdminPeople';
 
-// --- Route Protection ---
 const AdminRoute = ({ children }: { children: JSX.Element }) => {
   const { user, loading } = useAuth();
   if (loading) return <div className="p-4 text-center text-gray-500">Verifying access...</div>;
@@ -34,48 +36,59 @@ const AdminRoute = ({ children }: { children: JSX.Element }) => {
   return children;
 };
 
-// --- Main App Component ---
 const App: React.FC = () => {
   return (
     <AuthProvider>
       <Router>
-        <Navbar />
-        {/* Toast notifications container */}
-        <Toaster position="top-center" reverseOrder={false} />
+        {/* <--- 2. Added ScrollToTop Here */}
+        <ScrollToTop />
         
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Home />} />
-          
-          <Route path="/buy" element={<Listings type="sale" />} />
-          <Route path="/rent" element={<Listings type="rent" />} />
-          <Route path="/property/:id" element={<PropertyDetails />} />
-          
-          {/* Auth Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          
-          {/* User Routes */}
-          <Route path="/sell" element={<PostProperty />} />
-          <Route path="/find-agent" element={<FindAgent />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
-          <Route path="/edit-property/:id" element={<PostProperty />} />
+        <div className="flex flex-col min-h-screen">
+            
+            <Navbar />
+            <Toaster position="top-center" reverseOrder={false} />
+            
+            <div className="flex-grow">
+                <Routes>
+                  {/* Public Routes */}
+                  <Route path="/" element={<Home />} />
+                  <Route path="/buy" element={<Listings type="sale" />} />
+                  <Route path="/rent" element={<Listings type="rent" />} />
+                  <Route path="/property/:id" element={<PropertyDetails />} />
+                  
+                  {/* Auth Routes */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/signup" element={<Signup />} />
+                  
+                  {/* User Routes */}
+                  <Route path="/sell" element={<SellLanding />} />
+                  <Route path="/post-property" element={<PostProperty />} />
+                  <Route path="/edit-property/:id" element={<PostProperty />} />
+                  
+                  <Route path="/find-agent" element={<FindAgent />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
 
-          {/* Admin Routes - Protected */}
-          {/* Note: Ensure Admin pages fetch their own data now that props are removed */}
-          <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
-             <Route index element={<AdminDashboard properties={[]} />} /> 
-             <Route path="properties" element={<PropertyManagement properties={[]} setProperties={()=>{}} />} />
-             <Route path="post-property" element={<PostProperty />} />
-             <Route path="people" element={<UserManagement />} /> 
-             <Route path="leads" element={<AdminPeople />} />
-             <Route path="analytics" element={<AdminDashboard properties={[]} />} />
-             <Route path="settings" element={<Settings />} />
-             
-             
-          </Route>
-        </Routes>
+                  {/* Admin Routes */}
+                  <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+                      <Route index element={<AdminDashboard properties={[]} />} /> 
+                      <Route path="properties" element={<PropertyManagement properties={[]} setProperties={()=>{}} />} />
+                      <Route path="post-property" element={<PostProperty />} />
+                      <Route path="people" element={<UserManagement />} /> 
+                      <Route path="leads" element={<AdminPeople />} />
+                      <Route path="analytics" element={<AdminDashboard properties={[]} />} />
+                      <Route path="settings" element={<Settings />} />
+                  </Route>
+
+                  {/* Catch-all */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+
+                </Routes>
+            </div>
+
+            <Footer />
+            
+        </div>
       </Router>
     </AuthProvider>
   );
