@@ -60,6 +60,7 @@ const App: React.FC = () => {
           <Route path="/find-agent" element={<FindAgent />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
+          <Route path="/edit-property/:id" element={<PostProperty />} />
 
           {/* Admin Routes - Protected */}
           {/* Note: Ensure Admin pages fetch their own data now that props are removed */}
@@ -71,6 +72,8 @@ const App: React.FC = () => {
              <Route path="leads" element={<AdminPeople />} />
              <Route path="analytics" element={<AdminDashboard properties={[]} />} />
              <Route path="settings" element={<Settings />} />
+             
+             
           </Route>
         </Routes>
       </Router>

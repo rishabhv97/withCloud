@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import imageCompression from 'browser-image-compression'; // <--- NEW IMPORT
-import { useNavigate } from 'react-router-dom';
+import imageCompression from 'browser-image-compression';
+import { useNavigate, useParams } from 'react-router-dom'; // Added useParams
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { PropertyType, ListingType, OwnershipType, ConstructionStatus, FurnishedStatus, Facing, ParkingType, ViewType, BrokerageType, ListedBy } from '../types';
@@ -9,19 +9,20 @@ import { Sparkles, Upload, Loader2, CheckCircle, Home, X, AlertCircle, Trash2, C
 
 const PostProperty: React.FC = () => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>(); // Check if we are editing
   const { user } = useAuth();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCompressing, setIsCompressing] = useState(false); // <--- NEW STATE
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [loadingData, setLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // --- 1. Image State (Up to 6) ---
+  // --- Image Handling ---
+  const [existingImages, setExistingImages] = useState<string[]>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
 
-  // --- 2. Form Data State ---
   const [formData, setFormData] = useState({
-    // Basic
     listingType: 'sale' as ListingType,
     ownershipType: 'Freehold' as OwnershipType,
     propertyType: 'Apartment' as PropertyType,
@@ -30,22 +31,14 @@ const PostProperty: React.FC = () => {
     location: '',
     title: '',
     description: '',
-
-    // Room Details
     bedrooms: 1,
     bathrooms: 1,
     balconies: 0,
-    
-    // Area (At least one mandatory)
     carpetArea: '',
     builtUpArea: '',
     superBuiltUpArea: '',
-    
-    // Other Rooms & Furnishing
     additionalRooms: [] as string[],
     furnishedStatus: 'Unfurnished' as FurnishedStatus,
-    
-    // Features
     constructionStatus: 'Ready to Move' as ConstructionStatus,
     yearBuilt: '',
     floorNo: '',
@@ -54,22 +47,16 @@ const PostProperty: React.FC = () => {
     facingExit: 'South-West' as Facing,
     parkingType: 'Covered' as ParkingType,
     views: [] as ViewType[],
-    
-    // Media & Legal
     reraApproved: false,
     virtualShowcase: false,
     video3d: false,
     amenities: [] as string[],
     documents: [] as string[],
-    
-    // Price
     expectedPrice: '',
     pricePerSqft: '', 
     allInclusive: false,
     priceNegotiable: false,
     taxExcluded: false,
-    
-    // Brokerage
     brokerageType: 'None' as BrokerageType,
     brokerageAmount: '',
   });
@@ -77,20 +64,87 @@ const PostProperty: React.FC = () => {
   // --- Constants ---
   const additionalRoomOpts = ['Pooja Room', 'Study Room', 'Servant Room', 'Others'];
   const viewOptions: ViewType[] = ['Road', 'Park', 'Corner'];
-  
-  const amenityOptions = [
-    'Club House', 'Swimming Pool', 'Kids Play Area', 'Lift', 
-    'Power Backup', 'Gym', 'Vaastu Compliant', 'Security Personnel', 
-    'Gas Pipeline', 'Park', 'Intercom', 'Fire Safety'
-  ];
+  const amenityOptions = ['Club House', 'Swimming Pool', 'Kids Play Area', 'Lift', 'Power Backup', 'Gym', 'Vaastu Compliant', 'Security Personnel', 'Gas Pipeline', 'Park', 'Intercom', 'Fire Safety'];
+  const documentOptions = ['Sale Deed / Ownership Title', 'Society/Authority Transfer Letter', 'Occupancy Certificate (OC)', 'Completion Certificate (CC)', 'Encumbrance Certificate (EC)', 'Property Tax Receipts', 'NOC from Society/Builder', 'RERA Registration', 'Allotment Letter', 'Possession Letter'];
 
-  const documentOptions = [
-    'Sale Deed / Ownership Title', 'Society/Authority Transfer Letter', 'Occupancy Certificate (OC)',
-    'Completion Certificate (CC)', 'Encumbrance Certificate (EC)', 'Property Tax Receipts',
-    'NOC from Society/Builder', 'RERA Registration', 'Allotment Letter', 'Possession Letter'
-  ];
+  // --- 1. FETCH DATA IF EDITING ---
+  useEffect(() => {
+    if (id) {
+        fetchPropertyData();
+    }
+  }, [id]);
 
-  // --- Handlers ---
+  const fetchPropertyData = async () => {
+    setLoadingData(true);
+    try {
+        const { data, error } = await supabase
+            .from('properties')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) throw error;
+        if (data) {
+            // Verify Ownership
+            if (user && data.owner_id !== user.id && user.role !== 'Admin') {
+                toast.error("You are not authorized to edit this property.");
+                navigate('/');
+                return;
+            }
+
+            // Populate Form
+            setFormData({
+                listingType: data.listing_type,
+                ownershipType: data.ownership_type,
+                propertyType: data.type,
+                listedBy: data.listed_by === 'Agent' ? 'Agent' : 'Owner',
+                city: data.city,
+                location: data.location,
+                title: data.title,
+                description: data.description || '',
+                bedrooms: data.bedrooms,
+                bathrooms: data.bathrooms,
+                balconies: data.balconies,
+                carpetArea: data.carpet_area || '',
+                builtUpArea: data.built_up_area || '',
+                superBuiltUpArea: data.super_built_up_area || '',
+                additionalRooms: data.additional_rooms || [],
+                furnishedStatus: data.furnished_status,
+                constructionStatus: data.construction_status,
+                yearBuilt: data.year_built,
+                floorNo: data.floor_no,
+                totalFloors: data.total_floors,
+                facingEntry: data.facing_entry,
+                facingExit: data.facing_exit,
+                parkingType: data.parking_type,
+                views: data.views || [],
+                reraApproved: data.rera_approved,
+                virtualShowcase: data.is_virtual_showcase,
+                video3d: data.is_3d_video,
+                amenities: data.amenities || [],
+                documents: data.available_documents || [],
+                expectedPrice: data.price,
+                pricePerSqft: data.price_per_sqft,
+                allInclusive: data.is_all_inclusive_price,
+                priceNegotiable: data.price_negotiable,
+                taxExcluded: data.is_tax_excluded,
+                brokerageType: data.brokerage_type,
+                brokerageAmount: data.brokerage_amount
+            });
+
+            // Handle Images
+            if (data.images && data.images.length > 0) {
+                setExistingImages(data.images);
+                setPreviews(data.images);
+            }
+        }
+    } catch (err) {
+        console.error("Error fetching property:", err);
+        toast.error("Could not load property details.");
+    } finally {
+        setLoadingData(false);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -105,21 +159,16 @@ const PostProperty: React.FC = () => {
   const handleArrayToggle = (field: 'additionalRooms' | 'views' | 'documents' | 'amenities', value: string) => {
     setFormData(prev => {
         const arr = prev[field] as string[];
-        const newArr = arr.includes(value) 
-            ? arr.filter(item => item !== value) 
-            : [...arr, value];
+        const newArr = arr.includes(value) ? arr.filter(item => item !== value) : [...arr, value];
         return { ...prev, [field]: newArr };
     });
   };
 
-  // --- UPDATED: Image Selection with Compression ---
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-        // Explicitly type files as an array of File objects
         const files: File[] = Array.from(e.target.files);
-        
-        if (imageFiles.length + files.length > 6) {
-            toast.error("You can only upload up to 6 images.");
+        if (previews.length + files.length > 6) {
+            toast.error("You can only have up to 6 images.");
             return;
         }
 
@@ -127,35 +176,22 @@ const PostProperty: React.FC = () => {
         const loadingToast = toast.loading("Optimizing images...");
 
         try {
-            const options = {
-                maxSizeMB: 0.8,          // Compress to ~800KB max
-                maxWidthOrHeight: 1920,  // Resize large photos to HD
-                useWebWorker: true,      // Run in background to avoid freezing UI
-                fileType: 'image/webp'   // Convert to WebP (smaller & faster)
-            };
-
+            const options = { maxSizeMB: 0.8, maxWidthOrHeight: 1920, useWebWorker: true, fileType: 'image/webp' };
             const compressedFiles = await Promise.all(
-                files.map(async (file: File) => {
-                    // Try/Catch per file to avoid one bad apple failing the whole batch
-                    try {
-                        return await imageCompression(file, options);
-                    } catch (error) {
-                        console.error("Compression failed for", file.name, error);
-                        return file; // Fallback to original if compression fails
-                    }
+                files.map(async (file) => {
+                    try { return await imageCompression(file, options); } 
+                    catch { return file; }
                 })
             );
 
-            // Create previews from the COMPRESSED files
-            const newPreviews = compressedFiles.map((file: File) => URL.createObjectURL(file));
+            const newPreviews = compressedFiles.map(file => URL.createObjectURL(file));
             
             setImageFiles(prev => [...prev, ...compressedFiles]);
             setPreviews(prev => [...prev, ...newPreviews]);
-            toast.success("Images optimized!");
+            toast.success("Images added!");
 
         } catch (err) {
-            console.error("Image processing error:", err);
-            toast.error("Some images could not be optimized, but we added them.");
+            console.error(err);
         } finally {
             toast.dismiss(loadingToast);
             setIsCompressing(false);
@@ -164,79 +200,69 @@ const PostProperty: React.FC = () => {
   };
 
   const removeImage = (index: number) => {
-    setImageFiles(prev => prev.filter((_, i) => i !== index));
+    // 1. Remove from display preview
+    const imageToRemove = previews[index];
     setPreviews(prev => prev.filter((_, i) => i !== index));
-  };
 
-  useEffect(() => {
-    if (formData.expectedPrice && formData.superBuiltUpArea) {
-        const price = parseFloat(formData.expectedPrice);
-        const area = parseFloat(formData.superBuiltUpArea);
-        if (price && area) {
-            setFormData(prev => ({ ...prev, pricePerSqft: (price / area).toFixed(0) }));
+    // 2. Determine if it was an Existing URL or a New File
+    if (existingImages.includes(imageToRemove)) {
+        setExistingImages(prev => prev.filter(img => img !== imageToRemove));
+    } else {
+        // Since New Files are added to the END of the preview array, we need to calculate index relative to imageFiles
+        const newFileIndex = index - existingImages.length;
+        if (newFileIndex >= 0) {
+            setImageFiles(prev => prev.filter((_, i) => i !== newFileIndex));
         }
     }
-  }, [formData.expectedPrice, formData.superBuiltUpArea]);
+  };
 
   // --- Submit ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-        toast.error("Please login to post a property");
-        return navigate('/login');
-    }
+    if (!user) return navigate('/login');
     
     setIsSubmitting(true);
     setError(null);
 
     if (!formData.carpetArea && !formData.builtUpArea && !formData.superBuiltUpArea) {
-        const areaMsg = "At least one area type (Carpet, Built-up, or Super Built-up) is mandatory.";
-        setError(areaMsg);
-        toast.error(areaMsg);
+        toast.error("At least one area type is mandatory.");
         setIsSubmitting(false);
         return;
     }
 
     try {
-        const imageUrls: string[] = [];
+        let finalImageUrls = [...existingImages]; // Start with old images
         
-        // New Cloudinary Logic
-for (const file of imageFiles) {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET); 
-    formData.append("cloud_name", import.meta.env.VITE_CLOUDINARY_CLOUD_NAME);
-    formData.append("folder", "real-estate-app"); // Optional: Organize files in a folder
+        // 1. Upload NEW images
+        for (const file of imageFiles) {
+             // --- CLOUDINARY LOGIC ---
+             if (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME) {
+                const formData = new FormData();
+                formData.append("file", file);
+                formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET); 
+                formData.append("cloud_name", import.meta.env.VITE_CLOUDINARY_CLOUD_NAME);
 
-    try {
-        const res = await fetch(
-            `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
-            {
-                method: "POST",
-                body: formData,
-            }
-        );
-
-        if (!res.ok) throw new Error("Image upload failed");
-
-        const data = await res.json();
-        imageUrls.push(data.secure_url); // Push the Cloudinary URL
-    } catch (uploadError) {
-        console.error("Error uploading to Cloudinary:", uploadError);
-        toast.error(`Failed to upload ${file.name}`);
-        setIsSubmitting(false); // Stop submission if critical image fails
-        return; 
-    }
-}
-
-        if (imageUrls.length === 0) {
-            imageUrls.push('https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1000&q=80');
+                const res = await fetch(`https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`, {
+                    method: "POST",
+                    body: formData,
+                });
+                const data = await res.json();
+                if (data.secure_url) {
+                    finalImageUrls.push(data.secure_url);
+                }
+             } else {
+                // --- SUPABASE FALLBACK ---
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${user.id}/${Date.now()}-${Math.random()}.${fileExt}`;
+                const { error: uploadErr } = await supabase.storage.from('property-images').upload(fileName, file);
+                if (uploadErr) throw uploadErr;
+                const { data: { publicUrl } } = supabase.storage.from('property-images').getPublicUrl(fileName);
+                finalImageUrls.push(publicUrl);
+             }
         }
 
-        const initialStatus = (user.role === 'Admin' || user.role === 'Broker') ? 'Approved' : 'Pending';
-
+        // 2. Prepare Payload
         const propertyPayload = {
-            owner_id: user.id,
             title: formData.title || `${formData.bedrooms} BHK ${formData.propertyType} in ${formData.location}`,
             description: formData.description,
             price: parseFloat(formData.expectedPrice),
@@ -244,7 +270,7 @@ for (const file of imageFiles) {
             city: formData.city,
             type: formData.propertyType,
             listing_type: formData.listingType,
-            images: imageUrls, 
+            images: finalImageUrls, 
             bedrooms: formData.bedrooms,
             bathrooms: formData.bathrooms,
             balconies: formData.balconies,
@@ -272,36 +298,48 @@ for (const file of imageFiles) {
             is_tax_excluded: formData.taxExcluded,
             brokerage_type: formData.brokerageType,
             brokerage_amount: parseFloat(formData.brokerageAmount) || 0,
-            status: initialStatus,
-            listed_by: user.role === 'Broker' ? 'Agent' : 'Owner'
+            listed_by: formData.listedBy
         };
 
-        const { error: dbError } = await supabase.from('properties').insert([propertyPayload]);
-        if (dbError) throw dbError;
-
-        if (initialStatus === 'Approved') {
-            toast.success("Property Posted Successfully! It is now Live.");
+        if (id) {
+            // --- UPDATE MODE ---
+            const { error } = await supabase
+                .from('properties')
+                .update(propertyPayload)
+                .eq('id', id);
+            if(error) throw error;
+            toast.success("Property Updated Successfully!");
         } else {
-            toast.success("Property Posted! It is pending Admin Approval.");
+            // --- CREATE MODE ---
+            const { error } = await supabase
+                .from('properties')
+                .insert([{ 
+                    ...propertyPayload, 
+                    owner_id: user.id, 
+                    status: (user.role === 'Admin' || user.role === 'Broker') ? 'Approved' : 'Pending' 
+                }]);
+            if(error) throw error;
+            toast.success("Property Posted Successfully!");
         }
-        navigate('/');
+        
+        navigate(id ? '/dashboard' : '/');
 
     } catch (err: any) {
         console.error(err);
-        const msg = err.message || "Failed to upload property.";
-        setError(msg);
-        toast.error(msg);
+        toast.error(err.message || "Failed to save property.");
     } finally {
         setIsSubmitting(false);
     }
   };
 
+  if (loadingData) return <div className="h-screen flex justify-center items-center"><Loader2 className="animate-spin text-brand-green" size={40}/></div>;
+
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
         <div className="bg-brand-green p-6 text-white text-center">
-            <h1 className="text-3xl font-bold">Post Your Property</h1>
-            <p className="opacity-90">Fill in the details to reach millions of buyers</p>
+            <h1 className="text-3xl font-bold">{id ? 'Edit Property' : 'Post Your Property'}</h1>
+            <p className="opacity-90">{id ? 'Update your listing details' : 'Fill in the details to reach millions of buyers'}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="p-8 space-y-12">
@@ -647,7 +685,7 @@ for (const file of imageFiles) {
 
             <div className="flex justify-end pt-6">
                 <button type="submit" disabled={isSubmitting || isCompressing} className="bg-brand-green text-white text-lg font-bold py-4 px-10 rounded-xl hover:bg-emerald-800 transition flex items-center gap-2 shadow-lg shadow-brand-green/20 disabled:opacity-70 disabled:cursor-not-allowed">
-                    {isSubmitting ? <><Loader2 className="animate-spin"/> Publishing...</> : <><CheckCircle/> Post Property</>}
+                    {isSubmitting ? <><Loader2 className="animate-spin"/> Saving...</> : <><CheckCircle/> {id ? 'Update Property' : 'Post Property'}</>}
                 </button>
             </div>
 

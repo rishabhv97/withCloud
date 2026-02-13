@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { Property } from '../types';
 import { Link } from 'react-router-dom';
-import { Trash2, MessageSquare, Home, Calendar, Phone, Mail, Loader2, AlertCircle } from 'lucide-react';
+import { Trash2, MessageSquare, Home, Calendar, Phone, Mail, Loader2, Edit } from 'lucide-react'; // Added 'Edit'
 
 interface Lead {
   id: string;
@@ -75,9 +75,12 @@ const UserDashboard: React.FC = () => {
       // 1. Delete Images from Storage (Optional, but good for cleanup)
       if (property.images && property.images.length > 0) {
           const filesToRemove = property.images.map(url => {
-              const path = url.split('property-images/')[1]; // Extract path after bucket name
-              return path;
-          }).filter(Boolean);
+              if (url.includes('property-images')) {
+                 const path = url.split('property-images/')[1]; // Extract path after bucket name
+                 return path;
+              }
+              return null;
+          }).filter(Boolean) as string[];
 
           if (filesToRemove.length > 0) {
               await supabase.storage.from('property-images').remove(filesToRemove);
@@ -85,7 +88,6 @@ const UserDashboard: React.FC = () => {
       }
 
       // 2. Delete Record from Database
-      // Note: Leads will be auto-deleted if you ran the SQL CASCADE command.
       const { error } = await supabase.from('properties').delete().eq('id', property.id);
       
       if (error) throw error;
@@ -156,10 +158,23 @@ const UserDashboard: React.FC = () => {
                        <span className="text-gray-400">{new Date(property.datePosted).toLocaleDateString()}</span>
                     </div>
                  </div>
+                 
+                 {/* ACTIONS SECTION: View, Edit, Delete */}
                  <div className="p-4 border-t border-gray-100 bg-gray-50 flex gap-2">
                     <Link to={`/property/${property.id}`} className="flex-1 text-center py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50">
                        View
                     </Link>
+                    
+                    {/* EDIT BUTTON */}
+                    <Link 
+                        to={`/edit-property/${property.id}`} 
+                        className="p-2 bg-blue-50 text-blue-600 rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors"
+                        title="Edit Property"
+                    >
+                       <Edit size={18} />
+                    </Link>
+
+                    {/* DELETE BUTTON */}
                     <button 
                         onClick={() => handleDeleteProperty(property)} 
                         className="p-2 bg-red-50 text-red-600 rounded-lg border border-red-100 hover:bg-red-100 transition-colors"
