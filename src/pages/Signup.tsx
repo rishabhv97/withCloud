@@ -1,17 +1,24 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useNavigate, Link } from 'react-router-dom';
-import { UserPlus, Mail, Lock, User, Phone, Briefcase, Loader2, AlertCircle } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, Phone, Briefcase, Loader2, AlertCircle, ArrowRight } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const Signup: React.FC = () => {
   const navigate = useNavigate();
+  
+  // Steps: 'details' -> 'otp'
+  const [step, setStep] = useState<'details' | 'otp'>('details');
+  
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     name: '',
     phone: '',
-    role: 'Buyer' // Default role
+    role: 'Buyer'
   });
+  
+  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,13 +26,14 @@ const Signup: React.FC = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // --- Step 1: Create Account (Trigger OTP) ---
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      // 1. Sign up with Supabase Auth
+      // 1. Sign up with Password (this triggers the Email OTP because of your template settings)
       const { data, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -33,7 +41,7 @@ const Signup: React.FC = () => {
           data: {
             name: formData.name,
             phone: formData.phone,
-            role: formData.role, // This triggers the trigger we made in SQL
+            role: formData.role,
           },
         },
       });
@@ -41,8 +49,9 @@ const Signup: React.FC = () => {
       if (authError) throw authError;
 
       if (data.user) {
-        alert('Signup successful! You can now log in.');
-        navigate('/login');
+        // If successful, show OTP screen
+        toast.success(`Verification code sent to ${formData.email}`);
+        setStep('otp');
       }
     } catch (err: any) {
       setError(err.message || 'Failed to sign up');
@@ -51,15 +60,45 @@ const Signup: React.FC = () => {
     }
   };
 
+  // --- Step 2: Verify OTP ---
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+        const { data, error } = await supabase.auth.verifyOtp({
+            email: formData.email,
+            token: otp,
+            type: 'signup', // 'signup' type verifies the email AND logs them in
+        });
+
+        if (error) throw error;
+
+        toast.success("Account Verified & Created!");
+        navigate('/'); // Redirect to Home/Dashboard
+        
+    } catch (err: any) {
+        setError("Invalid code. Please try again.");
+    } finally {
+        setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-stone-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+        
         <div className="text-center">
           <div className="mx-auto h-12 w-12 bg-brand-lightGreen rounded-full flex items-center justify-center">
             <UserPlus className="h-6 w-6 text-brand-green" />
           </div>
-          <h2 className="mt-4 text-3xl font-extrabold text-gray-900">Create Account</h2>
-          <p className="mt-2 text-sm text-gray-600">Join Kiwi Sqft to buy, sell, or rent properties</p>
+          <h2 className="mt-4 text-3xl font-extrabold text-gray-900">
+            {step === 'details' ? 'Create Account' : 'Verify Email'}
+          </h2>
+          <p className="mt-2 text-sm text-gray-600">
+             {step === 'details' ? 'Join Kiwi Sqft today' : `Enter code sent to ${formData.email}`}
+          </p>
         </div>
 
         {error && (
@@ -68,67 +107,84 @@ const Signup: React.FC = () => {
           </div>
         )}
 
-        <form className="mt-8 space-y-4" onSubmit={handleSignup}>
-          
-          {/* Name Input */}
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <User className="h-5 w-5 text-gray-400" />
-            </div>
-            <input name="name" type="text" required
-              className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-brand-green outline-none"
-              placeholder="Full Name" onChange={handleChange} />
-          </div>
+        {step === 'details' ? (
+            /* --- FORM 1: DETAILS & PASSWORD --- */
+            <form className="mt-8 space-y-4" onSubmit={handleSignup}>
+            
+              {/* Name */}
+              <div className="relative">
+                <User className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+                <input name="name" type="text" required
+                  className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green outline-none"
+                  placeholder="Full Name" onChange={handleChange} />
+              </div>
 
-          {/* Email Input */}
-          <div className="relative">
-             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Mail className="h-5 w-5 text-gray-400" />
-            </div>
-            <input name="email" type="email" required
-              className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-brand-green outline-none"
-              placeholder="Email address" onChange={handleChange} />
-          </div>
+              {/* Email */}
+              <div className="relative">
+                <Mail className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+                <input name="email" type="email" required
+                  className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green outline-none"
+                  placeholder="Email address" onChange={handleChange} />
+              </div>
 
-          {/* Phone Input */}
-          <div className="relative">
-             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Phone className="h-5 w-5 text-gray-400" />
-            </div>
-            <input name="phone" type="tel" required
-              className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-brand-green outline-none"
-              placeholder="Phone Number" onChange={handleChange} />
-          </div>
+              {/* Phone */}
+              <div className="relative">
+                <Phone className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+                <input name="phone" type="tel" required
+                  className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green outline-none"
+                  placeholder="Phone Number" onChange={handleChange} />
+              </div>
 
-          {/* Role Selection */}
-          <div className="relative">
-             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Briefcase className="h-5 w-5 text-gray-400" />
-            </div>
-            <select name="role"
-              className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-brand-green outline-none bg-white"
-              onChange={handleChange} value={formData.role}>
-              <option value="Buyer">I want to Buy/Rent</option>
-              <option value="Seller">I want to Sell/Lease</option>
-              
-            </select>
-          </div>
+              {/* Role */}
+              <div className="relative">
+                <Briefcase className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+                <select name="role"
+                  className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green outline-none bg-white"
+                  onChange={handleChange} value={formData.role}>
+                  <option value="Buyer">I want to Buy/Rent</option>
+                  <option value="Seller">I want to Sell/Lease</option>
+                </select>
+              </div>
 
-          {/* Password Input */}
-          <div className="relative">
-             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock className="h-5 w-5 text-gray-400" />
-            </div>
-            <input name="password" type="password" required
-              className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-brand-green outline-none"
-              placeholder="Password (min 6 chars)" onChange={handleChange} />
-          </div>
+              {/* Password */}
+              <div className="relative">
+                <Lock className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+                <input name="password" type="password" required
+                  className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green outline-none"
+                  placeholder="Create Password (min 6 chars)" onChange={handleChange} />
+              </div>
 
-          <button type="submit" disabled={loading}
-            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-brand-green hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-green disabled:opacity-70 transition-all shadow-lg hover:shadow-xl">
-            {loading ? <Loader2 className="animate-spin" /> : 'Sign Up'}
-          </button>
-        </form>
+              <button type="submit" disabled={loading}
+                className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-brand-green hover:bg-emerald-800 transition-all shadow-lg hover:shadow-xl items-center gap-2">
+                {loading ? <Loader2 className="animate-spin" /> : <>Sign Up <ArrowRight size={18}/></>}
+              </button>
+            </form>
+        ) : (
+            /* --- FORM 2: OTP VERIFICATION --- */
+            <form className="mt-8 space-y-6" onSubmit={handleVerify}>
+                <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Enter 6-Digit Code</label>
+                    <input 
+                        type="text" 
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value)}
+                        placeholder="123456"
+                        className="w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-brand-green outline-none text-center text-xl tracking-widest font-mono"
+                        maxLength={6}
+                        required
+                    />
+                </div>
+
+                <button type="submit" disabled={loading}
+                    className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-brand-green hover:bg-emerald-800 transition-all shadow-lg">
+                    {loading ? <Loader2 className="animate-spin" /> : 'Verify & Create Account'}
+                </button>
+                
+                <button type="button" onClick={() => setStep('details')} className="w-full text-center text-sm text-gray-500 hover:text-gray-700">
+                    Change Email
+                </button>
+            </form>
+        )}
 
         <div className="text-center text-sm">
            <span className="text-gray-500">Already have an account? </span>

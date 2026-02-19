@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'; // Added useEffect, useRef
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Home, Menu, X, UserCircle, LogOut, ShieldCheck, UserPlus, LogIn, Plus } from 'lucide-react';
@@ -27,8 +27,10 @@ const Navbar: React.FC = () => {
     setIsOpen(false);
   }, [location]);
 
-  // --- 2. Close Menu on Click Outside & Scroll ---
+  // --- 2. Close Menu on Click Outside OR Scroll (With Safety Delay) ---
   useEffect(() => {
+    let scrollTimer: any = null;
+
     const handleClickOutside = (event: MouseEvent) => {
       if (navRef.current && !navRef.current.contains(event.target as Node)) {
         setIsOpen(false);
@@ -36,19 +38,22 @@ const Navbar: React.FC = () => {
     };
 
     const handleScroll = () => {
-      if (isOpen) {
-        setIsOpen(false);
-      }
+      setIsOpen(false);
     };
 
-    // Add listeners
-    document.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('scroll', handleScroll);
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      
+      // Wait 200ms before listening to scroll to prevent accidental closing
+      scrollTimer = setTimeout(() => {
+        window.addEventListener('scroll', handleScroll);
+      }, 200);
+    }
 
-    // Cleanup listeners
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       window.removeEventListener('scroll', handleScroll);
+      if (scrollTimer) clearTimeout(scrollTimer);
     };
   }, [isOpen]);
 
@@ -63,7 +68,6 @@ const Navbar: React.FC = () => {
         confirmLabel="Yes, Logout"
       />
 
-      {/* Added ref={navRef} here */}
       <nav ref={navRef} className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20">
@@ -93,7 +97,7 @@ const Navbar: React.FC = () => {
                     to={link.path}
                     className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                       isActive(link.path) 
-                        ? 'bg-brand-green text-white shadow-md shadow-brand-green/20' 
+                        ? 'bg-brand-green/10 text-brand-green font-bold' // ✅ FIXED: Green Text + Light Green BG
                         : 'text-gray-600 hover:bg-gray-50 hover:text-brand-green'
                     }`}
                   >

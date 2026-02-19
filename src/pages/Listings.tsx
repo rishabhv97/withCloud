@@ -19,7 +19,11 @@ const Listings: React.FC<ListingsProps> = ({ type }) => {
 
   // --- FILTER STATES ---
   const [searchTerm, setSearchTerm] = useState(initialSearch);
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000000000]); 
+  
+  // ✅ UPDATED: Price Range State
+  // Default: Min 0, Max 100 Cr (effectively unlimited)
+  const [minPrice, setMinPrice] = useState<string>('');
+  const [maxPrice, setMaxPrice] = useState<string>('');
   
   // Basic
   const [propertyType, setPropertyType] = useState<PropertyType | 'All'>('All');
@@ -37,8 +41,8 @@ const Listings: React.FC<ListingsProps> = ({ type }) => {
   const [parking, setParking] = useState<ParkingType | 'All'>('All');
   
   // Ranges & Categories
-  const [floorRange, setFloorRange] = useState<string>('All'); // "0-5", "5-10" etc.
-  const [buildingHeight, setBuildingHeight] = useState<string>('All'); // "Low", "Mid", "High"
+  const [floorRange, setFloorRange] = useState<string>('All'); 
+  const [buildingHeight, setBuildingHeight] = useState<string>('All'); 
   
   // Area Inputs
   const [minCarpet, setMinCarpet] = useState<string>('');
@@ -56,7 +60,7 @@ const Listings: React.FC<ListingsProps> = ({ type }) => {
   const [onlyNegotiable, setOnlyNegotiable] = useState(false);
   const [onlyTaxExcluded, setOnlyTaxExcluded] = useState(false);
 
-  // UI Toggles for Collapsible Sections
+  // UI Toggles
   const [sections, setSections] = useState({
       propertyType: true,
       rooms: true,
@@ -90,7 +94,7 @@ const Listings: React.FC<ListingsProps> = ({ type }) => {
   useEffect(() => {
     fetchProperties();
   }, [type, searchParams, bedrooms, bathrooms, balconies, propertyType, constructionStatus, 
-      furnishedStatus, listedBy, priceRange, ownership, facing, exitFacing, parking,
+      furnishedStatus, listedBy, minPrice, maxPrice, ownership, facing, exitFacing, parking,
       floorRange, buildingHeight, minCarpet, minBuiltUp, minSuper,
       selectedRooms, selectedDocs, selectedAmenities,
       onlyRera, onlyInclusive, onlyNegotiable, onlyTaxExcluded
@@ -137,12 +141,12 @@ const Listings: React.FC<ListingsProps> = ({ type }) => {
           query = query.gte('floor_no', minF).lte('floor_no', maxF);
       }
 
-      // 6. Building Height (Total Floors)
+      // 6. Building Height
       if (buildingHeight === 'Low Rise') query = query.lte('total_floors', 4);
       if (buildingHeight === 'Mid Rise') query = query.gt('total_floors', 4).lte('total_floors', 12);
       if (buildingHeight === 'High Rise') query = query.gt('total_floors', 12);
 
-      // 7. Arrays (Contains)
+      // 7. Arrays
       if (selectedRooms.length > 0) query = query.contains('additional_rooms', selectedRooms);
       if (selectedDocs.length > 0) query = query.contains('available_documents', selectedDocs);
       if (selectedAmenities.length > 0) query = query.contains('amenities', selectedAmenities);
@@ -153,8 +157,9 @@ const Listings: React.FC<ListingsProps> = ({ type }) => {
       if (onlyNegotiable) query = query.eq('price_negotiable', true);
       if (onlyTaxExcluded) query = query.eq('is_tax_excluded', true);
 
-      // 9. Price
-      query = query.gte('price', priceRange[0]).lte('price', priceRange[1]);
+      // 9. Price Range (Updated Logic)
+      if (minPrice) query = query.gte('price', parseFloat(minPrice));
+      if (maxPrice) query = query.lte('price', parseFloat(maxPrice));
 
       const { data, error } = await query;
       if (error) throw error;
@@ -222,7 +227,11 @@ const Listings: React.FC<ListingsProps> = ({ type }) => {
       setMinCarpet(''); setMinBuiltUp(''); setMinSuper('');
       setSelectedRooms([]); setSelectedDocs([]); setSelectedAmenities([]);
       setOnlyRera(false); setOnlyInclusive(false); setOnlyNegotiable(false); setOnlyTaxExcluded(false);
-      setPriceRange([0, 1000000000]);
+      
+      // Reset Price
+      setMinPrice('');
+      setMaxPrice('');
+      
       setSearchTerm(''); setSearchParams({});
   };
 
@@ -249,7 +258,7 @@ const Listings: React.FC<ListingsProps> = ({ type }) => {
 
         <div className="flex flex-col lg:flex-row gap-6">
           
-          {/* --- SIDEBAR FILTERS (SCROLLABLE) --- */}
+          {/* --- SIDEBAR FILTERS --- */}
           <div className={`lg:w-[320px] flex-shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 h-[85vh] sticky top-24 overflow-y-auto custom-scrollbar flex flex-col">
               
@@ -267,6 +276,45 @@ const Listings: React.FC<ListingsProps> = ({ type }) => {
                         <input type="text" placeholder="Sector, City..." className="w-full pl-8 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-brand-green outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}/>
                         <Search className="absolute left-2.5 top-2.5 text-gray-400" size={14} />
                     </form>
+                </div>
+
+                {/* Price & Budget (UPDATED) */}
+                <div className="border-b border-gray-100 pb-4">
+                    <button onClick={() => toggleSection('price')} className="flex justify-between w-full text-sm font-bold text-gray-800 mb-3">
+                        Price Range (₹) {sections.price ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
+                    </button>
+                    {sections.price && (
+                        <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <p className="text-xs text-gray-500 mb-1">Min Price</p>
+                                    <input 
+                                        type="number" 
+                                        placeholder="Min" 
+                                        className="w-full p-2 text-sm border rounded bg-gray-50 focus:ring-1 focus:ring-brand-green outline-none" 
+                                        value={minPrice} 
+                                        onChange={(e) => setMinPrice(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500 mb-1">Max Price</p>
+                                    <input 
+                                        type="number" 
+                                        placeholder="Max" 
+                                        className="w-full p-2 text-sm border rounded bg-gray-50 focus:ring-1 focus:ring-brand-green outline-none" 
+                                        value={maxPrice} 
+                                        onChange={(e) => setMaxPrice(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-1.5 pt-2">
+                                <label className="flex items-center gap-2"><input type="checkbox" checked={onlyInclusive} onChange={() => setOnlyInclusive(!onlyInclusive)} className="accent-brand-green"/> <span className="text-xs text-gray-600">All Inclusive Price</span></label>
+                                <label className="flex items-center gap-2"><input type="checkbox" checked={onlyNegotiable} onChange={() => setOnlyNegotiable(!onlyNegotiable)} className="accent-brand-green"/> <span className="text-xs text-gray-600">Price Negotiable</span></label>
+                                <label className="flex items-center gap-2"><input type="checkbox" checked={onlyTaxExcluded} onChange={() => setOnlyTaxExcluded(!onlyTaxExcluded)} className="accent-brand-green"/> <span className="text-xs text-gray-600">Tax Excluded</span></label>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Property Type */}
@@ -370,41 +418,6 @@ const Listings: React.FC<ListingsProps> = ({ type }) => {
                                 <input type="number" placeholder="Min Built-up" className="w-full p-2 text-xs border rounded bg-gray-50" value={minBuiltUp} onChange={e => setMinBuiltUp(e.target.value)} />
                             </div>
                             <input type="number" placeholder="Min Super Built-up" className="w-full p-2 text-xs border rounded bg-gray-50" value={minSuper} onChange={e => setMinSuper(e.target.value)} />
-                            
-                            {/* Price/Sqft Estimator Preview */}
-                            {(minSuper && priceRange[1] < 1000000000) && (
-                                <div className="bg-blue-50 p-2 rounded text-xs text-blue-700 flex items-start gap-2">
-                                    <Calculator size={14} className="mt-0.5"/>
-                                    <div>
-                                        <span className="font-bold">Est. Price/Sqft:</span> <br/>
-                                        ₹ {Math.round(priceRange[0] / parseFloat(minSuper))} - ₹ {Math.round(priceRange[1] / parseFloat(minSuper))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                {/* Price & Budget */}
-                <div className="border-b border-gray-100 pb-4">
-                    <button onClick={() => toggleSection('price')} className="flex justify-between w-full text-sm font-bold text-gray-800 mb-3">
-                        Price & Budget {sections.price ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
-                    </button>
-                    {sections.price && (
-                        <div className="space-y-3">
-                            <select className="w-full p-2 border rounded-lg text-xs bg-gray-50" onChange={(e) => setPriceRange([0, parseInt(e.target.value)])}>
-                                <option value="1000000000">Any Budget</option>
-                                <option value="5000000">Under ₹50 Lakh</option>
-                                <option value="10000000">Under ₹1 Cr</option>
-                                <option value="20000000">Under ₹2 Cr</option>
-                                <option value="50000000">Under ₹5 Cr</option>
-                            </select>
-                            
-                            <div className="space-y-1.5">
-                                <label className="flex items-center gap-2"><input type="checkbox" checked={onlyInclusive} onChange={() => setOnlyInclusive(!onlyInclusive)} className="accent-brand-green"/> <span className="text-xs text-gray-600">All Inclusive Price</span></label>
-                                <label className="flex items-center gap-2"><input type="checkbox" checked={onlyNegotiable} onChange={() => setOnlyNegotiable(!onlyNegotiable)} className="accent-brand-green"/> <span className="text-xs text-gray-600">Price Negotiable</span></label>
-                                <label className="flex items-center gap-2"><input type="checkbox" checked={onlyTaxExcluded} onChange={() => setOnlyTaxExcluded(!onlyTaxExcluded)} className="accent-brand-green"/> <span className="text-xs text-gray-600">Tax Excluded</span></label>
-                            </div>
                         </div>
                     )}
                 </div>

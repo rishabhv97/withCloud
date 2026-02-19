@@ -3,9 +3,9 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { Property } from '../types';
 import { Link } from 'react-router-dom';
-import { Trash2, MessageSquare, Home, Calendar, Phone, Mail, Loader2, Edit } from 'lucide-react';
+import { Trash2, MessageSquare, Home, Calendar, Phone, Mail, Loader2, Edit, User, Save } from 'lucide-react'; // Added User, Save
 import toast from 'react-hot-toast';
-import ConfirmationModal from '../components/ConfirmationModal'; // <--- Import Modal
+import ConfirmationModal from '../components/ConfirmationModal';
 
 interface Lead {
   id: string;
@@ -20,7 +20,8 @@ interface Lead {
 
 const UserDashboard: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'listings' | 'leads'>('listings');
+  // ✅ UPDATED: Added 'profile' to activeTab type
+  const [activeTab, setActiveTab] = useState<'listings' | 'leads' | 'profile'>('listings');
   const [myProperties, setMyProperties] = useState<Property[]>([]);
   const [myLeads, setMyLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,8 +31,20 @@ const UserDashboard: React.FC = () => {
   const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // --- Profile Edit State ---
+  const [profileName, setProfileName] = useState('');
+  const [profilePhone, setProfilePhone] = useState('');
+  const [profileCompany, setProfileCompany] = useState('');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
   useEffect(() => {
     if (!user) return;
+    
+    // Initialize Profile Data
+    setProfileName(user.name || '');
+    setProfilePhone(user.phone || '');
+    setProfileCompany(user.companyName || '');
+
     fetchDashboardData();
   }, [user]);
 
@@ -73,13 +86,34 @@ const UserDashboard: React.FC = () => {
     }
   };
 
-  // 1. Open Modal instead of confirm()
+  // --- Profile Update Handler ---
+  const handleUpdateProfile = async () => {
+    if (!user) return;
+    setIsSavingProfile(true);
+
+    try {
+        const { error } = await supabase.from('profiles').update({
+            name: profileName,
+            phone: profilePhone,
+            company_name: profileCompany
+        }).eq('id', user.id);
+
+        if (error) throw error;
+        toast.success("Profile updated successfully!");
+        
+    } catch (err: any) {
+        console.error("Profile Update Error:", err);
+        toast.error("Failed to update profile");
+    } finally {
+        setIsSavingProfile(false);
+    }
+  };
+
   const confirmDelete = (property: Property) => {
       setPropertyToDelete(property);
       setIsDeleteModalOpen(true);
   };
 
-  // 2. Actual Delete Logic
   const handleDeleteProperty = async () => {
     if (!propertyToDelete) return;
     setIsDeleting(true);
@@ -122,7 +156,6 @@ const UserDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-stone-50 py-10 px-4">
       
-      {/* --- ADD MODAL HERE --- */}
       <ConfirmationModal 
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
@@ -146,18 +179,25 @@ const UserDashboard: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-6 border-b border-gray-200 mb-8">
+        <div className="flex gap-6 border-b border-gray-200 mb-8 overflow-x-auto">
            <button 
              onClick={() => setActiveTab('listings')}
-             className={`pb-4 px-2 font-bold text-lg transition-all ${activeTab === 'listings' ? 'text-brand-green border-b-4 border-brand-green' : 'text-gray-400 hover:text-gray-600'}`}
+             className={`pb-4 px-2 font-bold text-lg transition-all whitespace-nowrap ${activeTab === 'listings' ? 'text-brand-green border-b-4 border-brand-green' : 'text-gray-400 hover:text-gray-600'}`}
            >
              My Listings <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs ml-2">{myProperties.length}</span>
            </button>
            <button 
              onClick={() => setActiveTab('leads')}
-             className={`pb-4 px-2 font-bold text-lg transition-all ${activeTab === 'leads' ? 'text-brand-green border-b-4 border-brand-green' : 'text-gray-400 hover:text-gray-600'}`}
+             className={`pb-4 px-2 font-bold text-lg transition-all whitespace-nowrap ${activeTab === 'leads' ? 'text-brand-green border-b-4 border-brand-green' : 'text-gray-400 hover:text-gray-600'}`}
            >
              Inbox / Leads <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-xs ml-2">{myLeads.length}</span>
+           </button>
+           {/* ✅ NEW: Profile Tab Button */}
+           <button 
+             onClick={() => setActiveTab('profile')}
+             className={`pb-4 px-2 font-bold text-lg transition-all whitespace-nowrap ${activeTab === 'profile' ? 'text-brand-green border-b-4 border-brand-green' : 'text-gray-400 hover:text-gray-600'}`}
+           >
+             My Profile
            </button>
         </div>
 
@@ -263,6 +303,89 @@ const UserDashboard: React.FC = () => {
               </div>
              )}
           </div>
+        )}
+
+        {/* ✅ NEW: Profile Tab Content */}
+        {activeTab === 'profile' && (
+            <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="bg-brand-green/10 p-3 rounded-full text-brand-green">
+                        <User size={28} />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-900">Edit Profile</h2>
+                        <p className="text-sm text-gray-500">Update your personal information.</p>
+                    </div>
+                </div>
+
+                <div className="space-y-6">
+                    {/* Name Input */}
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Full Name</label>
+                        <input 
+                            type="text" 
+                            value={profileName}
+                            onChange={(e) => setProfileName(e.target.value)}
+                            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green outline-none transition-all"
+                            placeholder="Your Name"
+                        />
+                    </div>
+
+                    {/* Email Input (Read Only) */}
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Email Address</label>
+                        <div className="relative">
+                            <input 
+                                type="email" 
+                                value={user?.email}
+                                disabled
+                                className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed pl-10"
+                            />
+                            <Mail size={18} className="absolute left-3 top-3.5 text-gray-400"/>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1.5 ml-1">Email cannot be changed.</p>
+                    </div>
+
+                    {/* Phone Input */}
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Phone Number</label>
+                        <div className="relative">
+                            <input 
+                                type="text" 
+                                value={profilePhone}
+                                onChange={(e) => setProfilePhone(e.target.value)}
+                                className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green outline-none transition-all pl-10"
+                                placeholder="+91 9876543210"
+                            />
+                            <Phone size={18} className="absolute left-3 top-3.5 text-gray-400"/>
+                        </div>
+                    </div>
+
+                    {/* Company Input */}
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Company Name (Optional)</label>
+                        <input 
+                            type="text" 
+                            value={profileCompany}
+                            onChange={(e) => setProfileCompany(e.target.value)}
+                            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green outline-none transition-all"
+                            placeholder="e.g. Dream Homes Realty"
+                        />
+                    </div>
+
+                    {/* Save Button */}
+                    <div className="pt-4 border-t border-gray-100 flex justify-end">
+                        <button 
+                            onClick={handleUpdateProfile}
+                            disabled={isSavingProfile}
+                            className="bg-brand-green text-white px-8 py-3 rounded-xl font-bold hover:bg-emerald-800 transition-all shadow-lg shadow-brand-green/20 flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                            {isSavingProfile ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
         )}
 
       </div>

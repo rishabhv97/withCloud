@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { User as AppUser } from '../types'; // Import your custom type
+import { User as AppUser } from '../types'; 
 import { Navigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 interface AuthContextType {
   user: AppUser | null;
@@ -16,19 +17,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Check active session
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    // 1. Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         fetchProfile(session.user.id, session.user.email!);
       } else {
         setLoading(false);
       }
-    };
+    });
 
-    getSession();
-
-    // 2. Listen for changes (login/logout)
+    // 2. Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         fetchProfile(session.user.id, session.user.email!);
@@ -50,7 +48,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
       
       if (data) {
-        // Map Supabase data to your AppUser type
         setUser({
           id: data.id,
           name: data.name || email.split('@')[0],
@@ -61,6 +58,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isVerified: data.is_verified,
           status: 'Active',
           companyName: data.company_name
+        });
+      } else {
+        // Fallback if profile trigger hasn't run yet or failed
+        setUser({
+          id: userId,
+          name: email.split('@')[0],
+          email: email,
+          phone: '',
+          role: 'User' as any,
+          joinDate: new Date().toISOString(),
+          isVerified: false,
+          status: 'Active'
         });
       }
     } catch (error) {
@@ -73,12 +82,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    toast.success('Logged out successfully');
   };
 
   return (
     <AuthContext.Provider value={{ user, loading, signOut }}>
       {loading ? (
-        <div className="flex items-center justify-center h-screen w-full bg-gray-50 text-brand-green font-bold text-xl">
+         <div className="flex items-center justify-center h-screen w-full bg-stone-50 text-brand-green font-bold text-xl animate-pulse">
            Loading Kiwi Sqft...
         </div>
       ) : (
@@ -90,15 +100,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
-  
   if (loading) return <div>Loading...</div>;
-  
-  if (!user) {
-    // If not logged in, redirect to Login page
-    return <Navigate to="/login" replace />;
-  }
-
-  // If logged in, show the page
+  if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
 };
 
