@@ -141,4 +141,8 @@ export interface User {
   propertiesListed?: number;
   companyName?: string;
   licenseNumber?: string;
+
+  // NEW FIELDS FOR AGENTS
+  agentValidUntil?: string; 
+  listingLimit?: number;
 }

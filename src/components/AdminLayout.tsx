@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Building2, Users, PieChart, Settings, LogOut, Menu, X, ShieldCheck, Home } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, PieChart, Settings, LogOut, Menu, X, ShieldCheck, Home, Briefcase } from 'lucide-react'; // ✅ Added Briefcase icon
 
 const AdminLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -12,6 +12,7 @@ const AdminLayout: React.FC = () => {
     { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
     { name: 'Properties & Verify', path: '/admin/properties', icon: Building2 },
     { name: 'User Management', path: '/admin/people', icon: Users },
+    { name: 'Agent Management', path: '/admin/agents', icon: Briefcase }, // ✅ NEW ROUTE ADDED
     { name: 'Leads & CRM', path: '/admin/leads', icon: PieChart },
     { name: 'Settings', path: '/admin/settings', icon: Settings },
   ];

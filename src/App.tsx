@@ -6,7 +6,7 @@ import { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer'; 
 import AdminLayout from './components/AdminLayout';
-import ScrollToTop from './components/ScrollToTop'; // <--- 1. Import Added
+import ScrollToTop from './components/ScrollToTop';
 
 // Context
 import { AuthProvider, useAuth, ProtectedRoute } from './context/AuthContext';
@@ -28,6 +28,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import PropertyManagement from './pages/admin/PropertyManagement';
 import UserManagement from './pages/admin/UserManagement';
 import AdminPeople from './pages/admin/AdminPeople';
+import AgentManagement from './pages/admin/AgentManagement'; // ✅ IMPORT ADDED
 
 const AdminRoute = ({ children }: { children: JSX.Element }) => {
   const { user, loading } = useAuth();
@@ -40,7 +41,6 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       <Router>
-        {/* <--- 2. Added ScrollToTop Here */}
         <ScrollToTop />
         
         <div className="flex flex-col min-h-screen">
@@ -75,6 +75,7 @@ const App: React.FC = () => {
                       <Route path="properties" element={<PropertyManagement properties={[]} setProperties={()=>{}} />} />
                       <Route path="post-property" element={<PostProperty />} />
                       <Route path="people" element={<UserManagement />} /> 
+                      <Route path="agents" element={<AgentManagement />} /> {/* ✅ ROUTE ADDED */}
                       <Route path="leads" element={<AdminPeople />} />
                       <Route path="analytics" element={<AdminDashboard properties={[]} />} />
                       <Route path="settings" element={<Settings />} />
