@@ -32,8 +32,9 @@ export interface Property {
   type: PropertyType;
   listingType: ListingType;
   
-  // --- UPDATED: Support multiple images ---
+  // --- UPDATED: Support multiple images & Video ---
   images: string[]; 
+  videoUrl?: string; // ✅ Added this line for video uploads
   
   // Room Details
   bedrooms: number;

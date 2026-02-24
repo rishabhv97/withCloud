@@ -1,18 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { useAuth } from '../context/AuthContext'; // <--- 1. Import Auth
+import { useAuth } from '../context/AuthContext'; 
 import { Property } from '../types';
 import { 
   MapPin, BedDouble, Bath, Maximize, ArrowLeft, Phone, Mail, 
   ShieldCheck, CheckCircle2, User, X, Loader2, Home, Layers, 
-  Compass, Calendar, Car, FileText, Info, Camera, Edit // <--- 2. Import Edit Icon
+  Compass, Calendar, Car, FileText, Info, Camera, Edit, Film // ✅ Added Film icon for video
 } from 'lucide-react';
 
 const PropertyDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth(); // <--- 3. Get Current User
+  const { user } = useAuth(); 
   
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,6 +49,7 @@ const PropertyDetails: React.FC = () => {
             images: data.images && data.images.length > 0 
               ? data.images 
               : ['https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1200&q=80'],
+            videoUrl: data.video_url, // ✅ Map the video URL from Supabase
             bedrooms: data.bedrooms,
             bathrooms: data.bathrooms,
             balconies: data.balconies,
@@ -152,7 +153,7 @@ const PropertyDetails: React.FC = () => {
             <ArrowLeft size={24} />
         </button>
 
-        {/* --- NEW: EDIT BUTTON (Only for Owner) --- */}
+        {/* --- EDIT BUTTON (Only for Owner) --- */}
         {isOwner && (
             <button 
                 onClick={() => navigate(`/edit-property/${property.id}`)} 
@@ -249,6 +250,26 @@ const PropertyDetails: React.FC = () => {
                     </div>
                </div>
             </div>
+
+            {/* ✅ NEW: PROPERTY VIDEO SECTION */}
+            {property.videoUrl && (
+                <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100 overflow-hidden">
+                    <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                        <Film size={20} className="text-brand-green" /> Property Video Tour
+                    </h2>
+                    <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black shadow-inner border border-gray-200">
+                        <video 
+                            src={property.videoUrl} 
+                            controls 
+                            controlsList="nodownload"
+                            className="w-full h-full object-contain"
+                            poster={property.images[0]}
+                        >
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                </div>
+            )}
 
             {/* Area Breakdown */}
             <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
