@@ -242,9 +242,9 @@ const PostProperty: React.FC = () => {
     const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
-            // Limit to 50MB
-            if (file.size > 50 * 1024 * 1024) {
-                toast.error("Video size must be less than 50MB");
+            // ✅ Limit to 15MB to protect Cloudinary limits
+            if (file.size > 15 * 1024 * 1024) {
+                toast.error("Video size must be less than 15MB");
                 return;
             }
             setVideoFile(file);
@@ -316,7 +316,12 @@ const PostProperty: React.FC = () => {
                     });
                     const data = await res.json();
                     if (data.secure_url) {
-                        finalVideoUrl = data.secure_url;
+                        // ✅ URL TRANSFORMATION: Ask Cloudinary to automatically compress on playback
+                        const url = data.secure_url;
+                        const uploadPath = '/upload/';
+                        const insertIndex = url.indexOf(uploadPath) + uploadPath.length;
+                        
+                        finalVideoUrl = url.substring(0, insertIndex) + 'q_auto,vc_auto,w_720/' + url.substring(insertIndex);
                     }
                 } else {
                     const fileExt = videoFile.name.split('.').pop();
@@ -785,7 +790,7 @@ const PostProperty: React.FC = () => {
                             {/* --- VIDEO UPLOAD --- */}
                             <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 h-full flex flex-col">
                                 <label className="block text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                                    <Film size={16} /> Property Video <span className="text-sm font-normal text-gray-500">(Optional, Max 50MB)</span>
+                                    <Film size={16} /> Property Video <span className="text-sm font-normal text-gray-500">(Optional, Max 15MB)</span>
                                 </label>
                                 
                                 <div className="flex-grow flex items-center justify-center">
@@ -800,7 +805,7 @@ const PostProperty: React.FC = () => {
                                         <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 bg-white rounded-lg p-8 cursor-pointer hover:bg-gray-50 transition w-full h-full min-h-[150px]">
                                             <Film className="text-gray-400 h-10 w-10 mb-3" />
                                             <span className="text-sm font-semibold text-gray-600 text-center">Click to upload video</span>
-                                            <span className="text-xs text-gray-500 mt-1 text-center">MP4, WebM (Max 50MB)</span>
+                                            <span className="text-xs text-gray-500 mt-1 text-center">MP4, WebM (Max 15MB)</span>
                                             <input type="file" accept="video/mp4,video/webm" onChange={handleVideoSelect} className="hidden" />
                                         </label>
                                     )}
