@@ -2,6 +2,7 @@ import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast'; 
 
+
 // Components
 import Navbar from './components/Navbar';
 import Footer from './components/Footer'; 
@@ -22,6 +23,14 @@ import Settings from './pages/Settings';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import UserDashboard from './pages/UserDashboard';
+
+// Info & Support Pages
+import PrivacyPolicy from './pages/info/PrivacyPolicy';
+import TermsOfService from './pages/info/TermsOfService';
+import CookiePolicy from './pages/info/CookiePolicy';
+import HelpCenter from './pages/info/HelpCenter';
+import SafetyGuide from './pages/info/SafetyGuide';
+import Support from './pages/info/Support';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -55,6 +64,14 @@ const App: React.FC = () => {
                   <Route path="/buy" element={<Listings type="sale" />} />
                   <Route path="/rent" element={<Listings type="rent" />} />
                   <Route path="/property/:id" element={<PropertyDetails />} />
+
+                  {/* Info & Support Routes */}
+                  <Route path="/support" element={<Support />} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/terms" element={<TermsOfService />} />
+                  <Route path="/cookies" element={<CookiePolicy />} />
+                  <Route path="/help" element={<HelpCenter />} />
+                  <Route path="/safety" element={<SafetyGuide />} />
                   
                   {/* Auth Routes */}
                   <Route path="/login" element={<Login />} />

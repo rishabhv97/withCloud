@@ -18,7 +18,7 @@ const CookiePolicy: React.FC = () => {
 
           <section>
             <h2 className="text-xl font-bold text-gray-900 mb-3">How we use cookies</h2>
-            <p>At Kiwi Sqft, we use cookies primarily for <strong>Authentication and Security</strong>. When you log in, our secure backend (Supabase) uses cookies to keep your session active so you do not have to log in every time you visit a new page.</p>
+            <p>At Kiwi Sqft, we use cookies primarily for <strong>Authentication and Security</strong>. When you log in, our secure backend uses cookies to keep your session active so you do not have to log in every time you visit a new page.</p>
           </section>
 
           <section>

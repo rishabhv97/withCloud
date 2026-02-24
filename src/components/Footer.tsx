@@ -40,11 +40,13 @@ const Footer: React.FC = () => {
           <div>
             <h3 className="font-bold text-lg mb-4 text-white">Support</h3>
             <ul className="space-y-3 text-sm text-emerald-100">
-              <li><Link to="#" className="hover:text-white transition-colors">Privacy Policy</Link></li>
-              <li><Link to="#" className="hover:text-white transition-colors">Terms of Service</Link></li>
-              <li><Link to="#" className="hover:text-white transition-colors">Cookie Policy</Link></li>
-              <li><Link to="#" className="hover:text-white transition-colors">Help Center</Link></li>
-              <li><Link to="#" className="hover:text-white transition-colors">Safety Guide</Link></li>
+              {/* Added link to your new Support page */}
+              <li><Link to="/support" className="hover:text-white transition-colors">Contact Support</Link></li>
+              <li><Link to="/help" className="hover:text-white transition-colors">Help Center</Link></li>
+              <li><Link to="/safety" className="hover:text-white transition-colors">Safety Guide</Link></li>
+              <li><Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+              <li><Link to="/terms" className="hover:text-white transition-colors">Terms of Service</Link></li>
+              <li><Link to="/cookies" className="hover:text-white transition-colors">Cookie Policy</Link></li>
             </ul>
           </div>
 
