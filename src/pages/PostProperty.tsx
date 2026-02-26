@@ -461,7 +461,7 @@ const PostProperty: React.FC = () => {
                                 <input required type="text" name="city" value={formData.city} onChange={handleChange} className="w-full p-2.5 border rounded-lg" />
                             </div>
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">Locality / Area</label>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Locality / Society </label>
                                 <input required type="text" name="location" value={formData.location} onChange={handleChange} className="w-full p-2.5 border rounded-lg" />
                             </div>
                         </div>
