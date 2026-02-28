@@ -29,7 +29,6 @@ const PostProperty: React.FC = () => {
 
     // --- Custom Year Dropdown State ---
     const [showYearDropdown, setShowYearDropdown] = useState(false);
-    // Updated: Starts from the Current Year and goes down 80 years
     const yearsList = Array.from({ length: 80 }, (_, i) => new Date().getFullYear() - i);
 
     const [formData, setFormData] = useState({
@@ -71,7 +70,6 @@ const PostProperty: React.FC = () => {
         brokerageAmount: '',
     });
 
-    // --- Constants ---
     const additionalRoomOpts = ['Pooja Room', 'Study Room', 'Servant Room', 'Others'];
     const viewOptions: ViewType[] = ['Road', 'Park', 'Corner'];
     const amenityOptions = ['Club House', 'Swimming Pool', 'Kids Play Area', 'Lift', 'Power Backup', 'Gym', 'Vaastu Compliant', 'Security Personnel', 'Gas Pipeline', 'Park', 'Intercom', 'Fire Safety'];
@@ -83,7 +81,6 @@ const PostProperty: React.FC = () => {
         }
     }, [id]);
 
-    // Auto-calculate Price per Sqft
     useEffect(() => {
         const price = parseFloat(formData.expectedPrice);
         const area = parseFloat(formData.superBuiltUpArea) || parseFloat(formData.builtUpArea) || parseFloat(formData.carpetArea);
@@ -125,15 +122,15 @@ const PostProperty: React.FC = () => {
                     bedrooms: data.bedrooms,
                     bathrooms: data.bathrooms,
                     balconies: data.balconies,
-                    carpetArea: data.carpet_area || '',
-                    builtUpArea: data.built_up_area || '',
-                    superBuiltUpArea: data.super_built_up_area || '',
+                    carpetArea: data.carpet_area?.toString() || '',
+                    builtUpArea: data.built_up_area?.toString() || '',
+                    superBuiltUpArea: data.super_built_up_area?.toString() || '',
                     additionalRooms: data.additional_rooms || [],
                     furnishedStatus: data.furnished_status,
                     constructionStatus: data.construction_status,
                     yearBuilt: data.year_built?.toString() || '',
-                    floorNo: data.floor_no,
-                    totalFloors: data.total_floors,
+                    floorNo: data.floor_no?.toString() || '',
+                    totalFloors: data.total_floors?.toString() || '',
                     facingEntry: data.facing_entry,
                     facingExit: data.facing_exit,
                     parkingType: data.parking_type,
@@ -143,13 +140,13 @@ const PostProperty: React.FC = () => {
                     video3d: data.is_3d_video,
                     amenities: data.amenities || [],
                     documents: data.available_documents || [],
-                    expectedPrice: data.price,
-                    pricePerSqft: data.price_per_sqft,
+                    expectedPrice: data.price?.toString() || '',
+                    pricePerSqft: data.price_per_sqft?.toString() || '',
                     allInclusive: data.is_all_inclusive_price,
                     priceNegotiable: data.price_negotiable,
                     taxExcluded: data.is_tax_excluded,
                     brokerageType: data.brokerage_type,
-                    brokerageAmount: data.brokerage_amount
+                    brokerageAmount: data.brokerage_amount?.toString() || ''
                 });
 
                 if (data.images && data.images.length > 0) {
@@ -157,7 +154,6 @@ const PostProperty: React.FC = () => {
                     setPreviews(data.images);
                 }
                 
-                // Set existing video
                 if (data.video_url) {
                     setExistingVideo(data.video_url);
                     setVideoPreview(data.video_url);
@@ -238,18 +234,16 @@ const PostProperty: React.FC = () => {
         }
     };
 
-    // --- VIDEO HANDLERS ---
     const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
-            // ✅ Limit to 15MB to protect Cloudinary limits
             if (file.size > 15 * 1024 * 1024) {
                 toast.error("Video size must be less than 15MB");
                 return;
             }
             setVideoFile(file);
             setVideoPreview(URL.createObjectURL(file));
-            setExistingVideo(null); // Clear existing if user uploads new
+            setExistingVideo(null); 
         }
     };
 
@@ -263,20 +257,67 @@ const PostProperty: React.FC = () => {
         e.preventDefault();
         if (!user) return navigate('/login');
 
-        setIsSubmitting(true);
+        // ✅ DEFENSIVE PROGRAMMING: Data Validations
         setError(null);
 
-        if (!formData.carpetArea && !formData.builtUpArea && !formData.superBuiltUpArea) {
-            toast.error("At least one area type is mandatory.");
-            setIsSubmitting(false);
+        // Price Validation
+        const expectedPrice = parseFloat(formData.expectedPrice);
+        if (isNaN(expectedPrice) || expectedPrice <= 0) {
+            toast.error("Expected Price must be greater than 0.");
             return;
         }
 
+        // Area Validation
+        const cArea = parseFloat(formData.carpetArea);
+        const bArea = parseFloat(formData.builtUpArea);
+        const sArea = parseFloat(formData.superBuiltUpArea);
+        if (!cArea && !bArea && !sArea) {
+            toast.error("At least one area type is mandatory.");
+            return;
+        }
+        if ((formData.carpetArea && cArea <= 0) || (formData.builtUpArea && bArea <= 0) || (formData.superBuiltUpArea && sArea <= 0)) {
+            toast.error("Area values must be positive numbers.");
+            return;
+        }
+
+        // Description Validation
+        if (formData.description.trim().length < 10) {
+            toast.error("Description is too short. Please provide at least 10 characters.");
+            return;
+        }
+
+        // Floors Validation
+        const tFloors = parseInt(formData.totalFloors);
+        const fNo = parseInt(formData.floorNo);
+        if (formData.totalFloors && tFloors <= 0) {
+            toast.error("Total floors must be a positive number.");
+            return;
+        }
+        if (formData.totalFloors && formData.floorNo && fNo > tFloors) {
+            toast.error("Property floor number cannot be greater than the total floors in the building.");
+            return;
+        }
+
+        // Brokerage Validation
+        if (formData.brokerageType !== 'None') {
+            const bAmt = parseFloat(formData.brokerageAmount);
+            if (isNaN(bAmt) || bAmt <= 0) {
+                toast.error("Please enter a valid Brokerage Amount greater than 0.");
+                return;
+            }
+            if (formData.brokerageType === 'Percentage of Price' && bAmt >= 100) {
+                toast.error("Brokerage percentage cannot be 100% or more.");
+                return;
+            }
+        }
+
+        setIsSubmitting(true);
+
         try {
             let finalImageUrls = [...existingImages];
-            let finalVideoUrl = existingVideo; // Keep existing video initially
+            let finalVideoUrl = existingVideo; 
 
-            // 1. Upload NEW images
+            // Upload NEW images
             for (const file of imageFiles) {
                 if (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME) {
                     const formData = new FormData();
@@ -302,7 +343,7 @@ const PostProperty: React.FC = () => {
                 }
             }
 
-            // 2. Upload NEW video
+            // Upload NEW video
             if (videoFile) {
                 toast.loading("Uploading video (this may take a moment)...", { id: "videoToast" });
                 if (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME) {
@@ -316,11 +357,9 @@ const PostProperty: React.FC = () => {
                     });
                     const data = await res.json();
                     if (data.secure_url) {
-                        // ✅ URL TRANSFORMATION: Ask Cloudinary to automatically compress on playback
                         const url = data.secure_url;
                         const uploadPath = '/upload/';
                         const insertIndex = url.indexOf(uploadPath) + uploadPath.length;
-                        
                         finalVideoUrl = url.substring(0, insertIndex) + 'q_auto,vc_auto,w_720/' + url.substring(insertIndex);
                     }
                 } else {
@@ -458,11 +497,11 @@ const PostProperty: React.FC = () => {
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">City</label>
-                                <input required type="text" name="city" value={formData.city} onChange={handleChange} className="w-full p-2.5 border rounded-lg" />
+                                <input required type="text" name="city" maxLength={50} value={formData.city} onChange={handleChange} className="w-full p-2.5 border rounded-lg" />
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Locality / Society </label>
-                                <input required type="text" name="location" value={formData.location} onChange={handleChange} className="w-full p-2.5 border rounded-lg" />
+                                <input required type="text" name="location" maxLength={100} value={formData.location} onChange={handleChange} className="w-full p-2.5 border rounded-lg" />
                             </div>
                         </div>
                     </section>
@@ -517,15 +556,15 @@ const PostProperty: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-1">Carpet Area (sq.ft)</label>
-                                <input type="number" name="carpetArea" value={formData.carpetArea} onChange={handleChange} className="w-full p-2.5 border rounded-lg" placeholder="e.g. 1200" />
+                                <input type="number" min="0" name="carpetArea" value={formData.carpetArea} onChange={handleChange} className="w-full p-2.5 border rounded-lg" placeholder="e.g. 1200" />
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-1">Built-up Area (sq.ft)</label>
-                                <input type="number" name="builtUpArea" value={formData.builtUpArea} onChange={handleChange} className="w-full p-2.5 border rounded-lg" placeholder="e.g. 1400" />
+                                <input type="number" min="0" name="builtUpArea" value={formData.builtUpArea} onChange={handleChange} className="w-full p-2.5 border rounded-lg" placeholder="e.g. 1400" />
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-1">Super Built-up Area</label>
-                                <input type="number" name="superBuiltUpArea" value={formData.superBuiltUpArea} onChange={handleChange} className="w-full p-2.5 border rounded-lg" placeholder="e.g. 1650" />
+                                <input type="number" min="0" name="superBuiltUpArea" value={formData.superBuiltUpArea} onChange={handleChange} className="w-full p-2.5 border rounded-lg" placeholder="e.g. 1650" />
                             </div>
                         </div>
                         <div>
@@ -577,7 +616,7 @@ const PostProperty: React.FC = () => {
                                         setShowYearDropdown(true);
                                     }}
                                     onFocus={() => setShowYearDropdown(true)}
-                                    onBlur={() => setTimeout(() => setShowYearDropdown(false), 200)} // Delay so click registers
+                                    onBlur={() => setTimeout(() => setShowYearDropdown(false), 200)}
                                     className="w-full p-2.5 border rounded-lg bg-white focus:ring-2 focus:ring-brand-green outline-none" 
                                     placeholder={`e.g. ${new Date().getFullYear()}`}
                                     autoComplete="off"
@@ -604,16 +643,15 @@ const PostProperty: React.FC = () => {
                                     </div>
                                 )}
                             </div>
-                            {/* --- END CUSTOM DROPDOWN --- */}
 
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">Floor No.</label>
-                                    <input type="number" name="floorNo" value={formData.floorNo} onChange={handleChange} className="w-full p-2.5 border rounded-lg" />
+                                    <input type="number" name="floorNo" min="-5" value={formData.floorNo} onChange={handleChange} className="w-full p-2.5 border rounded-lg" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">Total Floors</label>
-                                    <input type="number" name="totalFloors" value={formData.totalFloors} onChange={handleChange} className="w-full p-2.5 border rounded-lg" />
+                                    <input type="number" name="totalFloors" min="0" value={formData.totalFloors} onChange={handleChange} className="w-full p-2.5 border rounded-lg" />
                                 </div>
                             </div>
                             <div>
@@ -669,7 +707,6 @@ const PostProperty: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* --- UPDATED AMENITIES SECTION --- */}
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                                 <Dumbbell size={16} /> Amenities Available
@@ -711,7 +748,7 @@ const PostProperty: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-1">Expected Price (₹)</label>
-                                <input required type="number" name="expectedPrice" value={formData.expectedPrice} onChange={handleChange} className="w-full p-3 border rounded-lg text-lg font-bold" placeholder="e.g. 7500000" />
+                                <input required type="number" min="1" name="expectedPrice" value={formData.expectedPrice} onChange={handleChange} className="w-full p-3 border rounded-lg text-lg font-bold" placeholder="e.g. 7500000" />
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-1">Price per sq.ft</label>
@@ -744,19 +781,18 @@ const PostProperty: React.FC = () => {
                                     <option value="Percentage of Price">Percentage of Price</option>
                                 </select>
                                 {formData.brokerageType !== 'None' && (
-                                    <input type="number" name="brokerageAmount" value={formData.brokerageAmount} onChange={handleChange}
+                                    <input type="number" min="0" name="brokerageAmount" value={formData.brokerageAmount} onChange={handleChange}
                                         className="col-span-2 p-2.5 border rounded-lg" placeholder={formData.brokerageType === 'Fixed' ? 'Amount (₹)' : 'Percentage (%)'} />
                                 )}
                             </div>
                         </div>
                     </section>
 
-                    {/* SECTION 7: MEDIA (Images & Videos - SIDE BY SIDE) */}
+                    {/* SECTION 7: MEDIA */}
                     <section className="space-y-6">
                         <h2 className="text-xl font-bold text-gray-800 border-b pb-2 flex items-center gap-2"><Camera size={20} /> Media Uploads</h2>
                         
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
-                            {/* --- IMAGES UPLOAD --- */}
                             <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
                                 <label className="block text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
                                     <Camera size={16} /> Photos <span className="text-sm font-normal text-gray-500">(Max 6)</span>
@@ -787,7 +823,6 @@ const PostProperty: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* --- VIDEO UPLOAD --- */}
                             <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 h-full flex flex-col">
                                 <label className="block text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
                                     <Film size={16} /> Property Video <span className="text-sm font-normal text-gray-500">(Optional, Max 15MB)</span>
@@ -817,7 +852,7 @@ const PostProperty: React.FC = () => {
                     {/* SECTION 8: DESCRIPTION */}
                     <section>
                         <label className="block text-xl font-bold text-gray-800 mb-2">Description</label>
-                        <textarea required name="description" value={formData.description} onChange={handleChange} rows={5}
+                        <textarea required name="description" value={formData.description} onChange={handleChange} rows={5} minLength={10} maxLength={5000}
                             className="w-full p-4 border rounded-xl focus:ring-2 focus:ring-brand-green outline-none"
                             placeholder="Describe your property in detail (e.g. nearby landmarks, reason for selling)..."></textarea>
                     </section>

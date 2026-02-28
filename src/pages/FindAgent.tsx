@@ -235,7 +235,7 @@ const FindAgent = () => {
                               </button>
                            )}
 
-                           <Link to={`/agent/${agent.id}`} className="w-full text-brand-brown text-sm font-bold hover:underline flex items-center justify-center gap-1 mt-2">
+                           <Link to={`/profile/${agent.id}`} className="w-full text-brand-brown text-sm font-bold hover:underline flex items-center justify-center gap-1 mt-2">
                               View Profile <ChevronRight size={16} />
                            </Link>
                         </div>

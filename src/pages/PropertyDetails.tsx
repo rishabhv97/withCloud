@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom'; // ✅ Added Link here
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext'; 
 import { Property } from '../types';
@@ -19,7 +19,6 @@ const PropertyDetails: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // UI State
   const [activeImage, setActiveImage] = useState<string>('');
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [showContact, setShowContact] = useState(false);
@@ -39,7 +38,6 @@ const PropertyDetails: React.FC = () => {
         if (error) throw error;
 
         if (data) {
-          // Fetch phone, email, AND name from profiles table
           let contactNumber = data.owner_contact;
           let contactEmail = null;
           let contactName = null; 
@@ -127,11 +125,9 @@ const PropertyDetails: React.FC = () => {
     fetchProperty();
   }, [id]);
 
-
   useEffect(() => {
     const recordVisit = async () => {
       if (!property || !user || user.id === property.ownerId) return;
-      
       try {
         const { error } = await supabase.from('property_visitors').upsert({
           property_id: property.id,
@@ -139,13 +135,11 @@ const PropertyDetails: React.FC = () => {
           visitor_id: user.id,
           viewed_at: new Date().toISOString()
         }, { onConflict: 'property_id, visitor_id' }); 
-        
         if (error) console.error("Visitor tracking error:", error);
       } catch (err) {
         console.error("Failed to record visit", err);
       }
     };
-
     recordVisit();
   }, [property, user]);
 
@@ -153,14 +147,33 @@ const PropertyDetails: React.FC = () => {
     e.preventDefault();
     if (!property) return;
 
+    // ✅ DEFENSIVE PROGRAMMING: Strict Validations
+    if (leadForm.name.trim().length < 2) {
+        toast.error("Please enter a valid name (at least 2 characters).");
+        return;
+    }
+    
+    // Validates phone has 10 to 15 digits, optionally starting with a '+'
+    const phoneRegex = /^\+?[0-9]{10,15}$/;
+    const cleanPhone = leadForm.phone.replace(/[\s-]/g, ''); // Remove spaces/dashes for check
+    if (!phoneRegex.test(cleanPhone)) {
+        toast.error("Please enter a valid phone number (10 to 15 digits).");
+        return;
+    }
+
+    if (leadForm.message && leadForm.message.length > 1000) {
+        toast.error("Message is too long. Please keep it under 1000 characters.");
+        return;
+    }
+
     setSubmitLoading(true);
     try {
         const { error } = await supabase.from('leads').insert([{
             property_id: property.id,
             seller_id: property.ownerId,
-            buyer_name: leadForm.name,
-            buyer_phone: leadForm.phone,
-            message: leadForm.message || `I am interested in ${property.title}`
+            buyer_name: leadForm.name.trim(),
+            buyer_phone: cleanPhone,
+            message: leadForm.message.trim() || `I am interested in ${property.title}`
         }]);
 
         if (error) throw error;
@@ -433,7 +446,6 @@ const PropertyDetails: React.FC = () => {
                  </button>
                </div>
 
-               {/* ✅ CLICKABLE OWNER PROFILE CARD */}
                <div className="mt-6 pt-6 border-t border-gray-100 flex items-center gap-4">
                     <Link to={`/profile/${property.ownerId}`} className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-brand-green font-bold text-lg capitalize hover:ring-2 hover:ring-brand-green transition-all shadow-sm">
                         {property.ownerName ? property.ownerName.charAt(0) : <User size={24} />}
@@ -465,18 +477,38 @@ const PropertyDetails: React.FC = () => {
                     <p className="text-sm text-gray-500 mb-2">Please fill in your details to get a callback.</p>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
-                        <input required type="text" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-brand-green outline-none" 
-                            value={leadForm.name} onChange={e => setLeadForm({...leadForm, name: e.target.value})} placeholder="John Doe" />
+                        <input 
+                            required 
+                            type="text" 
+                            maxLength={50} // ✅ DEFENSIVE
+                            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-brand-green outline-none" 
+                            value={leadForm.name} 
+                            onChange={e => setLeadForm({...leadForm, name: e.target.value})} 
+                            placeholder="John Doe" 
+                        />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                        <input required type="tel" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-brand-green outline-none" 
-                            value={leadForm.phone} onChange={e => setLeadForm({...leadForm, phone: e.target.value})} placeholder="+91 98765 43210" />
+                        <input 
+                            required 
+                            type="tel" 
+                            maxLength={15} // ✅ DEFENSIVE
+                            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-brand-green outline-none" 
+                            value={leadForm.phone} 
+                            onChange={e => setLeadForm({...leadForm, phone: e.target.value})} 
+                            placeholder="+91 98765 43210" 
+                        />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
-                        <textarea className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-brand-green outline-none" rows={3}
-                            value={leadForm.message} onChange={e => setLeadForm({...leadForm, message: e.target.value})} placeholder="I am interested in this property..." />
+                        <textarea 
+                            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-brand-green outline-none" 
+                            rows={3}
+                            maxLength={1000} // ✅ DEFENSIVE
+                            value={leadForm.message} 
+                            onChange={e => setLeadForm({...leadForm, message: e.target.value})} 
+                            placeholder="I am interested in this property..." 
+                        />
                     </div>
                     <button type="submit" disabled={submitLoading} className="w-full bg-brand-green text-white font-bold py-3 rounded-lg hover:bg-emerald-800 transition flex items-center justify-center gap-2">
                         {submitLoading ? <Loader2 className="animate-spin"/> : "Send Request"}
