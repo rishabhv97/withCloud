@@ -3,10 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext'; 
 import { Property } from '../types';
+import toast from 'react-hot-toast';
 import { 
   MapPin, BedDouble, Bath, Maximize, ArrowLeft, Phone, Mail, 
   ShieldCheck, CheckCircle2, User, X, Loader2, Home, Layers, 
-  Compass, Calendar, Car, FileText, Info, Camera, Edit, Film // ✅ Added Film icon for video
+  Compass, Calendar, Car, FileText, Info, Camera, Edit, Film 
 } from 'lucide-react';
 
 const PropertyDetails: React.FC = () => {
@@ -21,6 +22,7 @@ const PropertyDetails: React.FC = () => {
   // UI State
   const [activeImage, setActiveImage] = useState<string>('');
   const [isContactOpen, setIsContactOpen] = useState(false);
+  const [showContact, setShowContact] = useState(false);
   const [leadForm, setLeadForm] = useState({ name: '', phone: '', message: '' });
   const [submitLoading, setSubmitLoading] = useState(false);
 
@@ -37,6 +39,27 @@ const PropertyDetails: React.FC = () => {
         if (error) throw error;
 
         if (data) {
+          // Fetch phone, email, AND name from profiles table
+          let contactNumber = data.owner_contact;
+          let contactEmail = null;
+          let contactName = null; // ✅ Added contactName
+          
+          if (data.owner_id) {
+              const { data: profileData } = await supabase
+                  .from('profiles')
+                  .select('phone, email, name')
+                  .eq('id', data.owner_id)
+                  .single();
+              
+              if (profileData) {
+                  if (!contactNumber && profileData.phone) {
+                      contactNumber = profileData.phone;
+                  }
+                  contactEmail = profileData.email;
+                  contactName = profileData.name; // ✅ Extract name
+              }
+          }
+
           const mappedProperty: Property = {
             id: data.id,
             title: data.title,
@@ -49,7 +72,7 @@ const PropertyDetails: React.FC = () => {
             images: data.images && data.images.length > 0 
               ? data.images 
               : ['https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1200&q=80'],
-            videoUrl: data.video_url, // ✅ Map the video URL from Supabase
+            videoUrl: data.video_url, 
             bedrooms: data.bedrooms,
             bathrooms: data.bathrooms,
             balconies: data.balconies,
@@ -58,7 +81,9 @@ const PropertyDetails: React.FC = () => {
             builtUpArea: data.built_up_area,
             superBuiltUpArea: data.super_built_up_area,
             amenities: data.amenities || [],
-            ownerContact: data.owner_contact,
+            ownerContact: contactNumber || null, 
+            ownerEmail: contactEmail || null, 
+            ownerName: contactName || null, // ✅ Map name to property object
             datePosted: data.created_at,
             isFeatured: data.is_featured,
             status: data.status,
@@ -102,6 +127,30 @@ const PropertyDetails: React.FC = () => {
     fetchProperty();
   }, [id]);
 
+
+  // ✅ NEW: Silent Visitor Tracking
+  useEffect(() => {
+    const recordVisit = async () => {
+      // Don't record if: No property loaded, no user logged in, or user is the owner
+      if (!property || !user || user.id === property.ownerId) return;
+      
+      try {
+        const { error } = await supabase.from('property_visitors').upsert({
+          property_id: property.id,
+          seller_id: property.ownerId,
+          visitor_id: user.id,
+          viewed_at: new Date().toISOString()
+        }, { onConflict: 'property_id, visitor_id' }); // Upsert ensures no duplicates!
+        
+        if (error) console.error("Visitor tracking error:", error);
+      } catch (err) {
+        console.error("Failed to record visit", err);
+      }
+    };
+
+    recordVisit();
+  }, [property, user]);
+
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!property) return;
@@ -117,11 +166,11 @@ const PropertyDetails: React.FC = () => {
         }]);
 
         if (error) throw error;
-        alert("Enquiry Sent! The owner will contact you shortly.");
+        toast.success("Enquiry Sent! The owner will contact you shortly.");
         setIsContactOpen(false);
         setLeadForm({ name: '', phone: '', message: '' });
     } catch (err) {
-        alert("Failed to send enquiry.");
+        toast.error("Failed to send enquiry.");
         console.error(err);
     } finally {
         setSubmitLoading(false);
@@ -137,7 +186,6 @@ const PropertyDetails: React.FC = () => {
   if (loading) return <div className="h-screen flex items-center justify-center text-brand-green font-bold text-xl"><Loader2 className="animate-spin mr-2"/> Loading Details...</div>;
   if (error || !property) return <div className="p-10 text-center">Property Not Found</div>;
 
-  // --- CHECK IF OWNER ---
   const isOwner = user && (user.id === property.ownerId || user.role === 'Admin');
 
   return (
@@ -148,12 +196,10 @@ const PropertyDetails: React.FC = () => {
         <img src={activeImage} alt={property.title} className="w-full h-full object-cover opacity-90 transition-opacity duration-300" />
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/80 via-transparent to-black/30"></div>
         
-        {/* Navigation */}
         <button onClick={() => navigate(-1)} className="absolute top-6 left-4 bg-white/20 backdrop-blur-md p-2 rounded-full text-white hover:bg-white/40 transition z-20">
             <ArrowLeft size={24} />
         </button>
 
-        {/* --- EDIT BUTTON (Only for Owner) --- */}
         {isOwner && (
             <button 
                 onClick={() => navigate(`/edit-property/${property.id}`)} 
@@ -163,7 +209,6 @@ const PropertyDetails: React.FC = () => {
             </button>
         )}
 
-        {/* Thumbnails */}
         {property.images.length > 1 && (
             <div className="absolute bottom-28 md:bottom-8 right-4 flex gap-2 overflow-x-auto max-w-full pb-2 z-20 scrollbar-hide">
                 {property.images.map((img, idx) => (
@@ -175,7 +220,6 @@ const PropertyDetails: React.FC = () => {
             </div>
         )}
 
-        {/* Title Overlay */}
         <div className="absolute bottom-8 left-4 md:left-8 text-white max-w-3xl z-10">
            <div className="flex flex-wrap gap-2 mb-3">
                <span className="bg-brand-green px-3 py-1 rounded-md text-sm font-bold uppercase tracking-wide">
@@ -197,7 +241,6 @@ const PropertyDetails: React.FC = () => {
           {/* 2. MAIN DETAILS */}
           <div className="lg:col-span-2 space-y-8">
             
-            {/* Quick Stats Card */}
             <div className="bg-white rounded-2xl shadow-sm p-6 grid grid-cols-2 md:grid-cols-4 gap-6 border border-gray-100">
                <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-blue-50 rounded-xl text-blue-600"><BedDouble size={24} /></div>
@@ -217,12 +260,10 @@ const PropertyDetails: React.FC = () => {
                </div>
             </div>
 
-            {/* Overview / Description */}
             <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
                <h2 className="text-xl font-bold text-gray-900 mb-4">About this Property</h2>
                <p className="text-gray-600 leading-relaxed whitespace-pre-line">{property.description || "No description provided."}</p>
                
-               {/* Detailed Specs Grid */}
                <div className="grid grid-cols-2 md:grid-cols-3 gap-y-6 gap-x-4 mt-8 pt-8 border-t border-gray-100">
                     <div>
                         <p className="text-gray-400 text-xs font-medium uppercase mb-1">Property Type</p>
@@ -251,7 +292,6 @@ const PropertyDetails: React.FC = () => {
                </div>
             </div>
 
-            {/* ✅ NEW: PROPERTY VIDEO SECTION */}
             {property.videoUrl && (
                 <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100 overflow-hidden">
                     <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
@@ -271,7 +311,6 @@ const PropertyDetails: React.FC = () => {
                 </div>
             )}
 
-            {/* Area Breakdown */}
             <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
                <h2 className="text-xl font-bold text-gray-900 mb-6">Area Breakdown</h2>
                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -301,7 +340,6 @@ const PropertyDetails: React.FC = () => {
                )}
             </div>
 
-            {/* Amenities */}
             <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
                <h2 className="text-xl font-bold text-gray-900 mb-6">Amenities & Features</h2>
                <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-2">
@@ -312,7 +350,6 @@ const PropertyDetails: React.FC = () => {
                      </div>
                    )) : <p className="text-gray-500 italic">No specific amenities listed.</p>}
                    
-                   {/* Add Views to Amenities list */}
                    {property.views && property.views.map((v, i) => (
                       <div key={`v-${i}`} className="flex items-center gap-2 text-gray-700">
                          <CheckCircle2 size={18} className="text-blue-500 flex-shrink-0" />
@@ -322,7 +359,6 @@ const PropertyDetails: React.FC = () => {
                </div>
             </div>
 
-            {/* Legal Documents */}
             {property.documents && property.documents.length > 0 && (
                 <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
                     <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2"><FileText size={20}/> Available Documents</h2>
@@ -345,11 +381,12 @@ const PropertyDetails: React.FC = () => {
                  <p className="text-gray-500 font-medium mb-1">Total Price</p>
                  <h2 className="text-4xl font-bold text-brand-green">{formatPrice(property.price)}</h2>
                  
-                 {property.pricePerSqft && (
+                 {/* ✅ FIX: Fixed the '0' rendering bug */}
+                 {property.pricePerSqft && property.pricePerSqft > 0 ? (
                      <p className="text-sm text-gray-500 mt-1 font-medium">
                          ₹ {property.pricePerSqft} / sqft
                      </p>
-                 )}
+                 ) : null}
                  
                  <div className="mt-3 flex flex-wrap gap-2">
                      {property.allInclusivePrice && <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">All Inclusive</span>}
@@ -357,7 +394,6 @@ const PropertyDetails: React.FC = () => {
                  </div>
                </div>
 
-               {/* Brokerage Info */}
                {property.brokerageType !== 'None' && (
                    <div className="mb-6 p-3 bg-amber-50 rounded-lg border border-amber-100 text-amber-800 text-sm flex items-start gap-2">
                        <Info size={16} className="mt-0.5 flex-shrink-0"/>
@@ -369,19 +405,49 @@ const PropertyDetails: React.FC = () => {
                )}
 
                <div className="space-y-3">
-                 <button onClick={() => alert(`Owner Contact: ${property.ownerContact}`)} className="w-full bg-white border-2 border-brand-green text-brand-green font-bold py-4 rounded-xl hover:bg-green-50 transition flex items-center justify-center gap-2">
-                    <Phone size={20} /> Show Number
-                 </button>
+                 {showContact ? (
+                     <div className="bg-green-50 rounded-xl p-4 border border-green-100 space-y-3 animate-in fade-in zoom-in duration-200">
+                         <p className="text-sm font-bold text-gray-700 mb-1 border-b border-green-200 pb-2">Contact Details</p>
+                         
+                         {property.ownerContact ? (
+                             <a href={`tel:${property.ownerContact}`} className="flex items-center gap-3 text-brand-green font-bold hover:underline">
+                                 <div className="bg-white p-2 rounded-full shadow-sm"><Phone size={16} /></div>
+                                 {property.ownerContact}
+                             </a>
+                         ) : (
+                             <p className="text-sm text-gray-500 flex items-center gap-2"><Phone size={16} /> Not provided</p>
+                         )}
+
+                         {property.ownerEmail && (
+                             <a href={`mailto:${property.ownerEmail}`} className="flex items-center gap-3 text-brand-green font-bold hover:underline break-all">
+                                 <div className="bg-white p-2 rounded-full shadow-sm"><Mail size={16} /></div>
+                                 {property.ownerEmail}
+                             </a>
+                         )}
+                     </div>
+                 ) : (
+                     <button onClick={() => setShowContact(true)} className="w-full bg-white border-2 border-brand-green text-brand-green font-bold py-4 rounded-xl hover:bg-green-50 transition flex items-center justify-center gap-2">
+                        <Phone size={20} /> Show Contact Info
+                     </button>
+                 )}
+
                  <button onClick={() => setIsContactOpen(true)} className="w-full bg-brand-green text-white font-bold py-4 rounded-xl hover:bg-emerald-800 transition flex items-center justify-center gap-2 shadow-lg shadow-brand-green/20">
                     <Mail size={20} /> Send Enquiry
                  </button>
                </div>
 
+               {/* ✅ FIX: Replaced the old "Owner" card with the new Dynamic Name Card */}
                <div className="mt-6 pt-6 border-t border-gray-100 flex items-center gap-4">
-                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-400"><User size={24} /></div>
+                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-brand-green font-bold text-lg capitalize">
+                        {property.ownerName ? property.ownerName.charAt(0) : <User size={24} />}
+                    </div>
                     <div>
-                        <p className="text-sm text-gray-500">Posted by {property.listedBy}</p>
-                        <p className="font-bold text-gray-900">Verified Seller <ShieldCheck size={16} className="inline text-blue-500" /></p>
+                        <p className="font-bold text-gray-900 text-lg capitalize">
+                            {property.ownerName || 'User'} 
+                        </p>
+                        <p className="text-sm text-gray-500 flex items-center gap-1">
+                            {property.listedBy} • Verified <ShieldCheck size={14} className="text-blue-500" />
+                        </p>
                     </div>
                </div>
             </div>
@@ -394,7 +460,7 @@ const PropertyDetails: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
                 <div className="bg-brand-green p-4 flex justify-between items-center text-white">
-                    <h3 className="font-bold text-lg flex items-center gap-2"><Mail size={18}/> Contact {property.listedBy}</h3>
+                    <h3 className="font-bold text-lg flex items-center gap-2"><Mail size={18}/> Contact {property.ownerName || property.listedBy}</h3>
                     <button onClick={() => setIsContactOpen(false)} className="hover:bg-white/20 p-1 rounded-full"><X size={20}/></button>
                 </div>
                 <form onSubmit={handleContactSubmit} className="p-6 space-y-4">

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Building2, Users, PieChart, Settings, LogOut, Menu, X, ShieldCheck, Home, Briefcase } from 'lucide-react'; // ✅ Added Briefcase icon
+import { LayoutDashboard, Building2, Users, PieChart, Settings, LogOut, Menu, X, ShieldCheck, Home, Briefcase, Eye } from 'lucide-react'; // ✅ Added Eye import here
 
 const AdminLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -8,12 +8,14 @@ const AdminLayout: React.FC = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
+  // ✅ FIX: Changed icon: <Eye size={20} /> to just icon: Eye
   const navItems = [
     { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
     { name: 'Properties & Verify', path: '/admin/properties', icon: Building2 },
     { name: 'User Management', path: '/admin/people', icon: Users },
-    { name: 'Agent Management', path: '/admin/agents', icon: Briefcase }, // ✅ NEW ROUTE ADDED
+    { name: 'Agent Management', path: '/admin/agents', icon: Briefcase },
     { name: 'Leads & CRM', path: '/admin/leads', icon: PieChart },
+    { name: 'Engagement', path: '/admin/engagement', icon: Eye }, // ✅ New working line
     { name: 'Settings', path: '/admin/settings', icon: Settings },
   ];
 

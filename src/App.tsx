@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast'; 
 
 
@@ -38,6 +38,8 @@ import PropertyManagement from './pages/admin/PropertyManagement';
 import UserManagement from './pages/admin/UserManagement';
 import AdminPeople from './pages/admin/AdminPeople';
 import AgentManagement from './pages/admin/AgentManagement'; // ✅ IMPORT ADDED
+import AdminLeads from './pages/admin/AdminLeads'; // ✅ ADD THIS IMPORT
+import AdminEngagement from './pages/admin/AdminEngagement';
 
 const AdminRoute = ({ children }: { children: JSX.Element }) => {
   const { user, loading } = useAuth();
@@ -93,9 +95,10 @@ const App: React.FC = () => {
                       <Route path="post-property" element={<PostProperty />} />
                       <Route path="people" element={<UserManagement />} /> 
                       <Route path="agents" element={<AgentManagement />} /> {/* ✅ ROUTE ADDED */}
-                      <Route path="leads" element={<AdminPeople />} />
+                      <Route path="leads" element={<AdminLeads />} />
                       <Route path="analytics" element={<AdminDashboard properties={[]} />} />
                       <Route path="settings" element={<Settings />} />
+                      <Route path="engagement" element={<AdminEngagement />} />
                   </Route>
 
                   {/* Catch-all */}

@@ -50,6 +50,8 @@ export interface Property {
   // Amenities & Contact
   amenities: string[];
   ownerContact: string;
+  ownerEmail?: string; // ✅ Added ownerEmail to show on property details
+  ownerName?: string;
   isFeatured?: boolean;
   datePosted: string;
   
