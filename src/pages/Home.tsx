@@ -306,7 +306,15 @@ const Home: React.FC = () => {
                 <div className="h-4 w-px bg-gray-300"></div>
                 <div><span className="font-bold text-gray-900">{seller.propertiesCount}</span> Properties</div>
               </div>
-              <button className="w-full py-3 rounded-lg border-2 border-brand-green text-brand-green font-bold hover:bg-brand-green hover:text-white transition-all">Show Contact</button>
+              
+              {/* ✅ FIX: Replaced <button> with a functioning <Link> */}
+              <Link 
+                to="/find-agent" 
+                className="w-full py-3 rounded-lg border-2 border-brand-green text-brand-green font-bold hover:bg-brand-green hover:text-white transition-all text-center block"
+              >
+                View Profile & Contact
+              </Link>
+
             </div>
           ))}
         </div>

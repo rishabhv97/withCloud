@@ -1,25 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import { Property, PropertyStatus } from '../../types';
-import { X, Eye, Trash2, ShieldCheck, PlusCircle, Loader2 } from 'lucide-react';
+import { X, Eye, Trash2, ShieldCheck, PlusCircle, Loader2, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast'; // Ensure you have this for notifications
-import ConfirmationModal from '../../components/ConfirmationModal'; // Import the new Modal
+import toast from 'react-hot-toast'; 
+import ConfirmationModal from '../../components/ConfirmationModal'; 
+
+interface AdminProperty extends Property {
+    ownerName?: string;
+}
 
 const PropertyManagement: React.FC = () => {
   const navigate = useNavigate();
-  const [properties, setProperties] = useState<Property[]>([]);
+  const [properties, setProperties] = useState<AdminProperty[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected' | 'Sold'>('All');
-  const [selectedProp, setSelectedProp] = useState<Property | null>(null);
+  const [selectedProp, setSelectedProp] = useState<AdminProperty | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  // --- Modal State ---
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
+  const [propertyToDelete, setPropertyToDelete] = useState<AdminProperty | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // --- HELPER: Cloudinary Thumbnails ---
   const getThumbnail = (url?: string) => {
     if (!url) return 'https://via.placeholder.com/150';
     if (url.includes('cloudinary.com')) {
@@ -51,7 +53,24 @@ const PropertyManagement: React.FC = () => {
       if (error) throw error;
 
       if (data) {
-        const mapped: Property[] = data.map((p: any) => ({
+        const ownerIds = [...new Set(data.map((p: any) => p.owner_id).filter(Boolean))];
+        let ownersMap: Record<string, string> = {};
+        
+        if (ownerIds.length > 0) {
+            // Fetch real names from profiles
+            const { data: profilesData } = await supabase
+                .from('profiles')
+                .select('id, name')
+                .in('id', ownerIds);
+                
+            if (profilesData) {
+                profilesData.forEach(profile => {
+                    ownersMap[profile.id] = profile.name || 'Unknown User';
+                });
+            }
+        }
+
+        const mapped: AdminProperty[] = data.map((p: any) => ({
             id: p.id,
             title: p.title,
             description: p.description || '',
@@ -63,6 +82,8 @@ const PropertyManagement: React.FC = () => {
             status: p.status,
             listedBy: p.listed_by,
             ownerId: p.owner_id,
+            // ✅ FIX: Strict name resolution. Never fall back to listed_by!
+            ownerName: p.owner_id ? (ownersMap[p.owner_id] || 'Unknown User') : 'No Account Linked', 
             images: p.images || [],
             bedrooms: p.bedrooms || 0,
             bathrooms: p.bathrooms || 0,
@@ -110,19 +131,17 @@ const PropertyManagement: React.FC = () => {
     }
   };
 
-  // 1. Open Modal instead of alert
-  const confirmDelete = (e: React.MouseEvent, property: Property) => {
-    e.stopPropagation(); // Prevent opening the side panel
+  const confirmDelete = (e: React.MouseEvent, property: AdminProperty) => {
+    e.stopPropagation(); 
     setPropertyToDelete(property);
     setIsDeleteModalOpen(true);
   };
 
-  // 2. Actual Delete Logic
   const handleDelete = async () => {
     if (!propertyToDelete) return;
     
     setIsDeleting(true);
-    setProcessingId(propertyToDelete.id); // Show loader on button behind modal if visible
+    setProcessingId(propertyToDelete.id); 
 
     try {
       const { error } = await supabase.from('properties').delete().eq('id', propertyToDelete.id);
@@ -154,7 +173,6 @@ const PropertyManagement: React.FC = () => {
   return (
     <div className="space-y-6">
       
-      {/* --- CONFIRMATION MODAL --- */}
       <ConfirmationModal 
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
@@ -194,11 +212,11 @@ const PropertyManagement: React.FC = () => {
         <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[600px]">
             <div className="overflow-y-auto flex-1">
                 <table className="w-full text-sm text-left">
-                    <thead className="bg-gray-50 text-gray-500 font-bold border-b border-gray-200 sticky top-0">
+                    <thead className="bg-gray-50 text-gray-500 font-bold border-b border-gray-200 sticky top-0 z-10">
                         <tr>
                             <th className="px-6 py-4">Property</th>
                             <th className="px-6 py-4">Status</th>
-                            <th className="px-6 py-4">Listed By</th>
+                            <th className="px-6 py-4">Owner / Listed By</th>
                             <th className="px-6 py-4 text-right">Actions</th>
                         </tr>
                     </thead>
@@ -228,7 +246,24 @@ const PropertyManagement: React.FC = () => {
                                         {p.status}
                                     </span>
                                 </td>
-                                <td className="px-6 py-4 text-xs text-gray-600">{p.listedBy}</td>
+                                
+                                <td className="px-6 py-4">
+                                    {p.ownerId ? (
+                                        <Link 
+                                            to={`/profile/${p.ownerId}`} 
+                                            onClick={(e) => e.stopPropagation()} 
+                                            className="font-bold text-gray-900 hover:text-brand-green hover:underline capitalize block"
+                                        >
+                                            {p.ownerName}
+                                        </Link>
+                                    ) : (
+                                        <span className="font-bold text-gray-900 capitalize">{p.ownerName}</span>
+                                    )}
+                                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded mt-1 inline-block">
+                                        {p.listedBy}
+                                    </span>
+                                </td>
+
                                 <td className="px-6 py-4 text-right">
                                     <button 
                                         onClick={(e) => confirmDelete(e, p)}
@@ -266,6 +301,20 @@ const PropertyManagement: React.FC = () => {
                         <p className="text-sm text-gray-500">{selectedProp.location}, {selectedProp.city}</p>
                     </div>
 
+                    {selectedProp.ownerId && (
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100 mb-6">
+                            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-brand-green shadow-sm border border-gray-200">
+                                <User size={18} />
+                            </div>
+                            <div>
+                                <p className="text-xs text-gray-500 font-medium">Owned By</p>
+                                <Link to={`/profile/${selectedProp.ownerId}`} className="text-sm font-bold text-gray-900 hover:text-brand-green hover:underline capitalize block">
+                                    {selectedProp.ownerName}
+                                </Link>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="space-y-3 pt-4 border-t border-gray-100">
                         <div className="grid grid-cols-2 gap-3">
                             <button 
@@ -282,10 +331,10 @@ const PropertyManagement: React.FC = () => {
                             </button>
                         </div>
                         <Link 
-                            to={`/property/${selectedProp.id}`} target="_blank"
-                            className="w-full py-2 bg-gray-100 text-gray-700 rounded-lg font-bold text-sm hover:bg-gray-200 flex items-center justify-center gap-2"
+                            to={`/property/${selectedProp.id}`} 
+                            className="w-full py-2 bg-gray-100 text-gray-700 rounded-lg font-bold text-sm hover:bg-gray-200 flex items-center justify-center gap-2 transition-colors"
                         >
-                            <Eye size={16} /> Preview
+                            <Eye size={16} /> Preview Property
                         </Link>
                     </div>
                 </div>

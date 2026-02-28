@@ -23,6 +23,8 @@ import Settings from './pages/Settings';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import UserDashboard from './pages/UserDashboard';
+import AgentProfile from './pages/AgentProfile';
+import UserProfile from './pages/UserProfile';
 
 // Info & Support Pages
 import PrivacyPolicy from './pages/info/PrivacyPolicy';
@@ -85,6 +87,7 @@ const App: React.FC = () => {
                   <Route path="/edit-property/:id" element={<PostProperty />} />
                   
                   <Route path="/find-agent" element={<FindAgent />} />
+                  <Route path="/profile/:id" element={<UserProfile />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
 

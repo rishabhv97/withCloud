@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom'; // ✅ Added Link here
 import { supabase } from '../../supabaseClient';
 import { User, UserRole } from '../../types';
-import { useAuth } from '../../context/AuthContext'; // 1. Import Auth Hook
+import { useAuth } from '../../context/AuthContext';
 import { Search, Shield, User as UserIcon, Building2, Trash2, Loader2, ArrowUpCircle } from 'lucide-react';
 
 const UserManagement: React.FC = () => {
-  const { user: currentUser } = useAuth(); // 2. Get the currently logged-in Admin
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterRole, setFilterRole] = useState<'All' | UserRole>('All');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // ... (Keep fetchUsers and handleRoleChange exactly the same) ...
-  
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -45,7 +44,6 @@ const UserManagement: React.FC = () => {
   };
 
   const handleRoleChange = async (userId: string, currentRole: string) => {
-      // ... (Keep your existing role change logic)
       const newRole = currentRole === 'Broker' ? 'Seller' : 'Broker';
       const actionName = newRole === 'Broker' ? "Promote to Agent" : "Revoke Agent Status";
       
@@ -68,9 +66,7 @@ const UserManagement: React.FC = () => {
       }
   };
 
-  // 3. Updated Delete Logic
   const handleDelete = async (id: string) => {
-      // Safety Check: Prevent self-deletion
       if (id === currentUser?.id) {
           alert("Action Denied: You cannot delete your own Admin account.");
           return;
@@ -86,7 +82,6 @@ const UserManagement: React.FC = () => {
       }
   };
 
-  // ... (Keep Filter Logic the same) ...
   const filteredUsers = users.filter(user => {
     const matchesRole = filterRole === 'All' || user.role === filterRole;
     const matchesSearch = 
@@ -99,7 +94,6 @@ const UserManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* ... (Keep Header & Search the same) ... */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
             <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
@@ -135,7 +129,6 @@ const UserManagement: React.FC = () => {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-                {/* ... (Keep Table Head same) ... */}
                 <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-200">
                     <tr>
                         <th className="px-6 py-4">User</th>
@@ -147,16 +140,17 @@ const UserManagement: React.FC = () => {
                 <tbody className="divide-y divide-gray-100">
                     {filteredUsers.length > 0 ? filteredUsers.map((user) => (
                         <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                            {/* ... (Keep User Info Columns same) ... */}
                             <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-brand-green/10 text-brand-green flex items-center justify-center font-bold">
+                                    {/* ✅ CLICKABLE AVATAR */}
+                                    <Link to={`/profile/${user.id}`} className="w-8 h-8 rounded-full bg-brand-green/10 text-brand-green flex items-center justify-center font-bold hover:bg-brand-green hover:text-white transition-colors">
                                         {user.name[0]?.toUpperCase()}
-                                    </div>
+                                    </Link>
                                     <div>
-                                        <p className="font-bold text-gray-900">
-                                            {user.name} {currentUser?.id === user.id && <span className="text-xs text-brand-green bg-green-50 px-2 py-0.5 rounded-full">(You)</span>}
-                                        </p>
+                                        {/* ✅ CLICKABLE NAME */}
+                                        <Link to={`/profile/${user.id}`} className="font-bold text-gray-900 hover:text-brand-green hover:underline">
+                                            {user.name} {currentUser?.id === user.id && <span className="text-xs text-brand-green bg-green-50 px-2 py-0.5 rounded-full ml-1 no-underline">(You)</span>}
+                                        </Link>
                                         <p className="text-xs text-gray-500">Joined {new Date(user.joinDate).toLocaleDateString()}</p>
                                     </div>
                                 </div>
@@ -181,7 +175,6 @@ const UserManagement: React.FC = () => {
                             </td>
                             <td className="px-6 py-4 text-right">
                                 <div className="flex items-center justify-end gap-2">
-                                    {/* ... (Promote Button Logic same) ... */}
                                     {user.role !== 'Admin' && (
                                         <button 
                                             onClick={() => handleRoleChange(user.id, user.role)}
@@ -196,7 +189,6 @@ const UserManagement: React.FC = () => {
                                         </button>
                                     )}
                                     
-                                    {/* 4. Disable Delete Button for Self */}
                                     <button 
                                         onClick={() => handleDelete(user.id)}
                                         disabled={currentUser?.id === user.id}

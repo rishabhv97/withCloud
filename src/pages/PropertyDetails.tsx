@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom'; // ✅ Added Link here
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext'; 
 import { Property } from '../types';
@@ -42,7 +42,7 @@ const PropertyDetails: React.FC = () => {
           // Fetch phone, email, AND name from profiles table
           let contactNumber = data.owner_contact;
           let contactEmail = null;
-          let contactName = null; // ✅ Added contactName
+          let contactName = null; 
           
           if (data.owner_id) {
               const { data: profileData } = await supabase
@@ -56,7 +56,7 @@ const PropertyDetails: React.FC = () => {
                       contactNumber = profileData.phone;
                   }
                   contactEmail = profileData.email;
-                  contactName = profileData.name; // ✅ Extract name
+                  contactName = profileData.name; 
               }
           }
 
@@ -83,7 +83,7 @@ const PropertyDetails: React.FC = () => {
             amenities: data.amenities || [],
             ownerContact: contactNumber || null, 
             ownerEmail: contactEmail || null, 
-            ownerName: contactName || null, // ✅ Map name to property object
+            ownerName: contactName || null, 
             datePosted: data.created_at,
             isFeatured: data.is_featured,
             status: data.status,
@@ -128,10 +128,8 @@ const PropertyDetails: React.FC = () => {
   }, [id]);
 
 
-  // ✅ NEW: Silent Visitor Tracking
   useEffect(() => {
     const recordVisit = async () => {
-      // Don't record if: No property loaded, no user logged in, or user is the owner
       if (!property || !user || user.id === property.ownerId) return;
       
       try {
@@ -140,7 +138,7 @@ const PropertyDetails: React.FC = () => {
           seller_id: property.ownerId,
           visitor_id: user.id,
           viewed_at: new Date().toISOString()
-        }, { onConflict: 'property_id, visitor_id' }); // Upsert ensures no duplicates!
+        }, { onConflict: 'property_id, visitor_id' }); 
         
         if (error) console.error("Visitor tracking error:", error);
       } catch (err) {
@@ -381,7 +379,6 @@ const PropertyDetails: React.FC = () => {
                  <p className="text-gray-500 font-medium mb-1">Total Price</p>
                  <h2 className="text-4xl font-bold text-brand-green">{formatPrice(property.price)}</h2>
                  
-                 {/* ✅ FIX: Fixed the '0' rendering bug */}
                  {property.pricePerSqft && property.pricePerSqft > 0 ? (
                      <p className="text-sm text-gray-500 mt-1 font-medium">
                          ₹ {property.pricePerSqft} / sqft
@@ -436,20 +433,21 @@ const PropertyDetails: React.FC = () => {
                  </button>
                </div>
 
-               {/* ✅ FIX: Replaced the old "Owner" card with the new Dynamic Name Card */}
+               {/* ✅ CLICKABLE OWNER PROFILE CARD */}
                <div className="mt-6 pt-6 border-t border-gray-100 flex items-center gap-4">
-                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-brand-green font-bold text-lg capitalize">
+                    <Link to={`/profile/${property.ownerId}`} className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-brand-green font-bold text-lg capitalize hover:ring-2 hover:ring-brand-green transition-all shadow-sm">
                         {property.ownerName ? property.ownerName.charAt(0) : <User size={24} />}
-                    </div>
+                    </Link>
                     <div>
-                        <p className="font-bold text-gray-900 text-lg capitalize">
-                            {property.ownerName || 'User'} 
-                        </p>
+                        <Link to={`/profile/${property.ownerId}`} className="font-bold text-gray-900 text-lg capitalize hover:text-brand-green hover:underline">
+                            {property.ownerName || 'Platform User'} 
+                        </Link>
                         <p className="text-sm text-gray-500 flex items-center gap-1">
                             {property.listedBy} • Verified <ShieldCheck size={14} className="text-blue-500" />
                         </p>
                     </div>
                </div>
+
             </div>
           </div>
         </div>
