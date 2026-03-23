@@ -94,7 +94,8 @@ const FindAgent = () => {
             <div className="max-w-7xl mx-auto">
                <h1 className="text-3xl md:text-4xl font-bold text-white mb-4 text-center">Find An Agent</h1>
                <p className="text-brand-lightGreen text-center mb-8 max-w-2xl mx-auto">
-                  Connect with verified experts who can help you navigate the real estate market.
+                  Explore agents by local market expertise, specialties and verified reviews to find the perfect match.
+Already have an agent? See how we can help you get in front of the most buyers to maximize your sale.
                </p>
 
                <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-xl p-2 flex flex-col md:flex-row gap-2">
