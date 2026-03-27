@@ -175,10 +175,10 @@ const Home: React.FC = () => {
         <div className="relative z-10 max-w-4xl mx-auto text-center md:text-left">
           <div className="flex flex-col md:items-start items-center">
             <h1 className="text-white text-2xl md:text-4xl font-semibold mb-2 drop-shadow-md">
-              Properties to {activeTab === 'rent' ? 'rent' : (activeTab === 'sell' ? 'sell' : 'buy')} in <span className="font-bold">Noida</span>
+              Properties to {activeTab === 'rent' ? 'rent' : (activeTab === 'sell' ? 'sell' : 'buy')} in <span className="font-bold">NCR</span>
             </h1>
             <p className="text-brand-lightGreen/90 text-sm md:text-base mb-6 font-medium drop-shadow-sm">
-              Verified listings • 50k+ added daily
+              Verified listings added daily
             </p>
             <div className="w-full">
               <div className="grid grid-cols-3 gap-2 mb-0 pb-2 md:pb-0 w-full">
@@ -324,7 +324,7 @@ const Home: React.FC = () => {
       <div className="flex justify-center items-center gap-3 py-10 pb-12 bg-white/50 border-t border-gray-100">
         <span className="text-xl font-medium text-gray-900">Part of</span>
         <div className="bg-[#E4002B] rounded-full p-1.5 w-9 h-9 flex items-center justify-center shadow-sm"><HomeIcon className="text-white w-5 h-5" strokeWidth={3} /></div>
-        <span className="text-xl font-bold text-gray-900">REA Group</span>
+        <span className="text-xl font-bold text-gray-900">Smarter Realty Advisor </span>
       </div>
     </div>
   );
