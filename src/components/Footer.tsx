@@ -56,15 +56,15 @@ const Footer: React.FC = () => {
             <ul className="space-y-4 text-sm text-emerald-100">
               <li className="flex items-start gap-3">
                 <MapPin size={18} className="text-white flex-shrink-0 mt-0.5" />
-                <span>123, Tech Park, Greater Noida,<br />Uttar Pradesh, India - 201308</span>
+                <span>B-704, Tower-B, ATS Bouquet,<br />Sector-132, Noida-201301</span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone size={18} className="text-white flex-shrink-0" />
-                <span>+91 98765 43210</span>
+                <span>+91 9205974843</span> 
               </li>
               <li className="flex items-center gap-3">
                 <Mail size={18} className="text-white flex-shrink-0" />
-                <span>support@kiwisqft.com</span>
+                <span>support@kiwisqfeet.com</span>
               </li>
             </ul>
           </div>

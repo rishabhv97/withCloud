@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { Property } from '../types';
 import { Link } from 'react-router-dom';
-import { Trash2, MessageSquare, Home, Calendar, Phone, Mail, Loader2, Edit, User, Save, Eye, Clock, Heart } from 'lucide-react';
+import { Trash2, MessageSquare, Home, Calendar, Phone, Mail, Loader2, Edit, User, Save, Eye, Clock, Heart, Briefcase } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ConfirmationModal from '../components/ConfirmationModal';
 import PropertyCard from '../components/PropertyCard';
@@ -28,7 +28,6 @@ interface Visitor {
   visitor?: { name: string; phone: string; email: string };
 }
 
-// Property Savers Interface
 interface PropertySave {
   id: string;
   property_id: string;
@@ -54,23 +53,42 @@ const UserDashboard: React.FC = () => {
   const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Profile Edit State
+  // ✅ Profile Edit State
   const [profileName, setProfileName] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
   const [profileCompany, setProfileCompany] = useState('');
+  const [profileExperience, setProfileExperience] = useState('');
+  const [profileOperatingAreas, setProfileOperatingAreas] = useState('');
+  const [profileLanguages, setProfileLanguages] = useState('');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // ✅ Check if the user is a professional
+  const isProfessional = user && ['Seller', 'Broker', 'Agent'].includes(user.role);
 
   useEffect(() => {
     if (!user) return;
-    setProfileName(user.name || '');
-    setProfilePhone(user.phone || '');
-    setProfileCompany(user.companyName || '');
     fetchDashboardData();
   }, [user]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
+      // ✅ 0. Fetch the full user profile to populate the 'My Profile' tab accurately
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user?.id)
+        .single();
+
+      if (profileData) {
+          setProfileName(profileData.name || user?.name || '');
+          setProfilePhone(profileData.phone || user?.phone || '');
+          setProfileCompany(profileData.company_name || user?.companyName || '');
+          setProfileExperience(profileData.experience_years || '');
+          setProfileOperatingAreas(profileData.operating_areas ? profileData.operating_areas.join(', ') : '');
+          setProfileLanguages(profileData.languages_spoken ? profileData.languages_spoken.join(', ') : '');
+      }
+
       // 1. Fetch Properties
       const { data: props, error: propError } = await supabase
         .from('properties')
@@ -180,9 +198,23 @@ const UserDashboard: React.FC = () => {
     if (!user) return;
     setIsSavingProfile(true);
     try {
-        const { error } = await supabase.from('profiles').update({
-            name: profileName, phone: profilePhone, company_name: profileCompany
-        }).eq('id', user.id);
+        // ✅ Format string arrays correctly for DB
+        const areasArray = profileOperatingAreas.split(',').map(s => s.trim()).filter(Boolean);
+        const languagesArray = profileLanguages.split(',').map(s => s.trim()).filter(Boolean);
+
+        const updateData: any = {
+            name: profileName, 
+            phone: profilePhone, 
+            company_name: profileCompany
+        };
+
+        if (isProfessional) {
+            updateData.experience_years = profileExperience;
+            updateData.operating_areas = areasArray;
+            updateData.languages_spoken = languagesArray;
+        }
+
+        const { error } = await supabase.from('profiles').update(updateData).eq('id', user.id);
         if (error) throw error;
         toast.success("Profile updated successfully!");
     } catch (err: any) {
@@ -457,15 +489,31 @@ const UserDashboard: React.FC = () => {
                 </div>
 
                 <div className="space-y-6">
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">Full Name</label>
-                        <input 
-                            type="text" 
-                            value={profileName}
-                            onChange={(e) => setProfileName(e.target.value)}
-                            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green outline-none transition-all"
-                            placeholder="Your Name"
-                        />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Full Name</label>
+                            <input 
+                                type="text" 
+                                value={profileName}
+                                onChange={(e) => setProfileName(e.target.value)}
+                                className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green outline-none transition-all"
+                                placeholder="Your Name"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Phone Number</label>
+                            <div className="relative">
+                                <input 
+                                    type="text" 
+                                    value={profilePhone}
+                                    onChange={(e) => setProfilePhone(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green outline-none transition-all pl-10"
+                                    placeholder="+91 9876543210"
+                                />
+                                <Phone size={18} className="absolute left-3 top-3.5 text-gray-400"/>
+                            </div>
+                        </div>
                     </div>
 
                     <div>
@@ -482,30 +530,73 @@ const UserDashboard: React.FC = () => {
                         <p className="text-xs text-gray-400 mt-1.5 ml-1">Email cannot be changed.</p>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">Phone Number</label>
-                        <div className="relative">
+                    {/* ✅ CONDITIONAL PROFESSIONAL SECTION */}
+                    {isProfessional && (
+                        <div className="pt-6 border-t border-gray-100">
+                            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                <Briefcase className="text-brand-green" size={20} /> Professional Details
+                            </h3>
+                            
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 mb-2">Company Name</label>
+                                        <input 
+                                            type="text" 
+                                            value={profileCompany}
+                                            onChange={(e) => setProfileCompany(e.target.value)}
+                                            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green outline-none transition-all"
+                                            placeholder="e.g. Dream Homes Realty"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 mb-2">Years of Experience</label>
+                                        <input 
+                                            type="number" 
+                                            min="0"
+                                            value={profileExperience}
+                                            onChange={(e) => setProfileExperience(e.target.value)}
+                                            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green outline-none transition-all"
+                                            placeholder="e.g. 5"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">Operating Areas (Comma separated)</label>
+                                    <input 
+                                        type="text" 
+                                        value={profileOperatingAreas}
+                                        onChange={(e) => setProfileOperatingAreas(e.target.value)}
+                                        className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green outline-none transition-all"
+                                        placeholder="Sector 150, Sector 137, Greater Noida"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">Languages Spoken (Comma separated)</label>
+                                    <input 
+                                        type="text" 
+                                        value={profileLanguages}
+                                        onChange={(e) => setProfileLanguages(e.target.value)}
+                                        className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green outline-none transition-all"
+                                        placeholder="English, Hindi"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {!isProfessional && (
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Company Name (Optional)</label>
                             <input 
                                 type="text" 
-                                value={profilePhone}
-                                onChange={(e) => setProfilePhone(e.target.value)}
-                                className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green outline-none transition-all pl-10"
-                                placeholder="+91 9876543210"
+                                value={profileCompany}
+                                onChange={(e) => setProfileCompany(e.target.value)}
+                                className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green outline-none transition-all"
+                                placeholder="e.g. Dream Homes Realty"
                             />
-                            <Phone size={18} className="absolute left-3 top-3.5 text-gray-400"/>
                         </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">Company Name (Optional)</label>
-                        <input 
-                            type="text" 
-                            value={profileCompany}
-                            onChange={(e) => setProfileCompany(e.target.value)}
-                            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green outline-none transition-all"
-                            placeholder="e.g. Dream Homes Realty"
-                        />
-                    </div>
+                    )}
 
                     <div className="pt-4 border-t border-gray-100 flex justify-end">
                         <button 
