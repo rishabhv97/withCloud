@@ -189,7 +189,8 @@ const Navbar: React.FC = () => {
               <Link to="/buy" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-green hover:bg-gray-50">Buy</Link>
               <Link to="/rent" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-green hover:bg-gray-50">Rent</Link>
               <Link to="/sell" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-green hover:bg-gray-50">Sell</Link>
-              
+              <Link to="/find-agent" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-green hover:bg-gray-50">Find Agent</Link>
+
               <div className="border-t border-gray-100 my-2 pt-2">
                   {user ? (
                       <>
