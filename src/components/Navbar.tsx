@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Home, Menu, X, UserCircle, LogOut, ShieldCheck, UserPlus, LogIn, Plus } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
+import myLogo from '../assets/logo.png';
 
 const Navbar: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -75,8 +76,12 @@ const Navbar: React.FC = () => {
             {/* Logo Section */}
             <div className="flex items-center">
               <Link to="/" className="flex items-center gap-2 group">
-                <div className="bg-brand-green p-2 rounded-lg shadow-sm group-hover:bg-emerald-800 transition-colors">
-                   <Home className="h-6 w-6 text-white" />
+                <div className="flex items-center justify-center">
+                   <img 
+                      src={myLogo} 
+                      alt="Kiwi Sqft Logo" 
+                      className="h-10 w-auto object-contain" 
+                   />
                 </div>
                 <span className="text-2xl font-bold text-brand-green tracking-tight">
                   Kiwi <span className="text-brand-brown">Sqft</span>

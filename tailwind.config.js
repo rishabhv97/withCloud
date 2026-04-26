@@ -8,7 +8,7 @@ export default {
     extend: {
       colors: {
         brand: {
-          green: '#047857',      // emerald-700
+          green: '#047857',      // emerald-700  '#85b347' 
           lightGreen: '#d1fae5', // emerald-100
           brown: '#78350f',      // amber-900
           lightBrown: '#fff7ed', // orange-50

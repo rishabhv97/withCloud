@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import PropertyCard from '../components/PropertyCard';
 import { Property } from '../types';
 import { supabase } from '../supabaseClient';
+import hridayaLogo from '../assets/hridayalogo.png';
 
 interface LocalityStats {
   name: string;
@@ -306,10 +307,10 @@ const Home: React.FC = () => {
                 <div className="h-4 w-px bg-gray-300"></div>
                 <div><span className="font-bold text-gray-900">{seller.propertiesCount}</span> Properties</div>
               </div>
-              
+
               {/* ✅ FIX: Replaced <button> with a functioning <Link> */}
-              <Link 
-                to="/find-agent" 
+              <Link
+                to="/find-agent"
                 className="w-full py-3 rounded-lg border-2 border-brand-green text-brand-green font-bold hover:bg-brand-green hover:text-white transition-all text-center block"
               >
                 View Profile & Contact
@@ -323,7 +324,14 @@ const Home: React.FC = () => {
       {/* Footer Branding */}
       <div className="flex justify-center items-center gap-3 py-10 pb-12 bg-white/50 border-t border-gray-100">
         <span className="text-xl font-medium text-gray-900">Part of</span>
-        <div className="bg-[#E4002B] rounded-full p-1.5 w-9 h-9 flex items-center justify-center shadow-sm"><HomeIcon className="text-white w-5 h-5" strokeWidth={3} /></div>
+        {/* <div className="bg-[#E4002B] rounded-full p-1.5 w-9 h-9 flex items-center justify-center shadow-sm"><HomeIcon className="text-white w-5 h-5" strokeWidth={3} /></div> */}
+        <div className="flex items-center justify-center">
+          <img
+            src={hridayaLogo}
+            alt="Kiwi Sqft Logo"
+            className="h-10 w-auto object-contain"
+          />
+        </div>
         <span className="text-xl font-bold text-gray-900">Smarter Realty Advisor </span>
       </div>
     </div>
